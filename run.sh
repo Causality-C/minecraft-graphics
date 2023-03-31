@@ -1,0 +1,1 @@
+tsc-watch --allowJs -m ES6 -t ES6 --outDir dist --sourceMap --alwaysStrict ./src/minecraft/*.ts ./src/lib/vue/vue.js ./src/lib/threejs/examples/jsm/loaders/*.js --onSuccess "sh -c 'cp -r ./src/minecraft/static/* ./dist && python3 -m http.server --directory dist'"
