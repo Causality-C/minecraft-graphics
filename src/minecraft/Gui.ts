@@ -1,8 +1,9 @@
-import { Camera } from "../lib/webglutils/Camera.js";
-import { CanvasAnimation } from "../lib/webglutils/CanvasAnimation.js";
-import { MinecraftAnimation } from "./App.js";
-import { Mat4, Vec3, Vec4, Vec2, Mat2, Quat } from "../lib/TSM.js";
-import { RenderPass } from "../lib/webglutils/RenderPass.js";
+import {Mat2, Mat4, Quat, Vec2, Vec3, Vec4} from '../lib/TSM.js';
+import {Camera} from '../lib/webglutils/Camera.js';
+import {CanvasAnimation} from '../lib/webglutils/CanvasAnimation.js';
+import {RenderPass} from '../lib/webglutils/RenderPass.js';
+
+import {MinecraftAnimation} from './App.js';
 
 /**
  * Might be useful for designing any animation GUI
@@ -66,14 +67,8 @@ export class GUI implements IGUI {
    */
   public reset(): void {
     this.camera = new Camera(
-      new Vec3([0, 100, 0]),
-      new Vec3([0, 100, -1]),
-      new Vec3([0, 1, 0]),
-      45,
-      this.width / this.height,
-      0.1,
-      1000.0
-    );
+        new Vec3([0, 100, 0]), new Vec3([0, 100, -1]), new Vec3([0, 1, 0]), 45,
+        this.width / this.height, 0.1, 1000.0);
   }
 
   /**
@@ -81,14 +76,8 @@ export class GUI implements IGUI {
    * @param cam a new camera
    */
   public setCamera(
-    pos: Vec3,
-    target: Vec3,
-    upDir: Vec3,
-    fov: number,
-    aspect: number,
-    zNear: number,
-    zFar: number
-  ) {
+      pos: Vec3, target: Vec3, upDir: Vec3, fov: number, aspect: number,
+      zNear: number, zFar: number) {
     this.camera = new Camera(pos, target, upDir, fov, aspect, zNear, zFar);
   }
 
@@ -155,32 +144,32 @@ export class GUI implements IGUI {
    */
   public onKeydown(key: KeyboardEvent): void {
     switch (key.code) {
-      case "KeyW": {
+      case 'KeyW': {
         this.Wdown = true;
         break;
       }
-      case "KeyA": {
+      case 'KeyA': {
         this.Adown = true;
         break;
       }
-      case "KeyS": {
+      case 'KeyS': {
         this.Sdown = true;
         break;
       }
-      case "KeyD": {
+      case 'KeyD': {
         this.Ddown = true;
         break;
       }
-      case "KeyR": {
+      case 'KeyR': {
         this.animation.reset();
         break;
       }
-      case "Space": {
+      case 'Space': {
         this.animation.jump();
         break;
       }
       default: {
-        console.log("Key : '", key.code, "' was pressed.");
+        console.log('Key : \'', key.code, '\' was pressed.');
         break;
       }
     }
@@ -188,19 +177,19 @@ export class GUI implements IGUI {
 
   public onKeyup(key: KeyboardEvent): void {
     switch (key.code) {
-      case "KeyW": {
+      case 'KeyW': {
         this.Wdown = false;
         break;
       }
-      case "KeyA": {
+      case 'KeyA': {
         this.Adown = false;
         break;
       }
-      case "KeyS": {
+      case 'KeyS': {
         this.Sdown = false;
         break;
       }
-      case "KeyD": {
+      case 'KeyD': {
         this.Ddown = false;
         break;
       }
@@ -213,28 +202,23 @@ export class GUI implements IGUI {
    */
   private registerEventListeners(canvas: HTMLCanvasElement): void {
     /* Event listener for key controls */
-    window.addEventListener("keydown", (key: KeyboardEvent) =>
-      this.onKeydown(key)
-    );
+    window.addEventListener(
+        'keydown', (key: KeyboardEvent) => this.onKeydown(key));
 
-    window.addEventListener("keyup", (key: KeyboardEvent) => this.onKeyup(key));
+    window.addEventListener('keyup', (key: KeyboardEvent) => this.onKeyup(key));
 
     /* Event listener for mouse controls */
-    canvas.addEventListener("mousedown", (mouse: MouseEvent) =>
-      this.dragStart(mouse)
-    );
+    canvas.addEventListener(
+        'mousedown', (mouse: MouseEvent) => this.dragStart(mouse));
 
-    canvas.addEventListener("mousemove", (mouse: MouseEvent) =>
-      this.drag(mouse)
-    );
+    canvas.addEventListener(
+        'mousemove', (mouse: MouseEvent) => this.drag(mouse));
 
-    canvas.addEventListener("mouseup", (mouse: MouseEvent) =>
-      this.dragEnd(mouse)
-    );
+    canvas.addEventListener(
+        'mouseup', (mouse: MouseEvent) => this.dragEnd(mouse));
 
     /* Event listener to stop the right click menu */
-    canvas.addEventListener("contextmenu", (event: any) =>
-      event.preventDefault()
-    );
+    canvas.addEventListener(
+        'contextmenu', (event: any) => event.preventDefault());
   }
 }

@@ -1,16 +1,13 @@
-import { Mat4, Vec3, Vec4 } from "../lib/TSM.js";
-import { Camera } from "../lib/webglutils/Camera.js";
-import {
-  CanvasAnimation,
-  WebGLUtilities,
-} from "../lib/webglutils/CanvasAnimation.js";
-import { Debugger } from "../lib/webglutils/Debugging.js";
-import { RenderPass } from "../lib/webglutils/RenderPass.js";
+import {Mat4, Vec3, Vec4} from '../lib/TSM.js';
+import {Camera} from '../lib/webglutils/Camera.js';
+import {CanvasAnimation, WebGLUtilities,} from '../lib/webglutils/CanvasAnimation.js';
+import {Debugger} from '../lib/webglutils/Debugging.js';
+import {RenderPass} from '../lib/webglutils/RenderPass.js';
 
-import { Chunk } from "./Chunk.js";
-import { Cube } from "./Cube.js";
-import { GUI } from "./Gui.js";
-import { blankCubeFSText, blankCubeVSText } from "./Shaders.js";
+import {Chunk} from './Chunk.js';
+import {Cube} from './Cube.js';
+import {GUI} from './Gui.js';
+import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
 
 export class MinecraftAnimation extends CanvasAnimation {
   private gui: GUI;
@@ -35,7 +32,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
 
-    this.canvas2d = document.getElementById("textCanvas") as HTMLCanvasElement;
+    this.canvas2d = document.getElementById('textCanvas') as HTMLCanvasElement;
 
     this.ctx = Debugger.makeDebugContext(this.ctx);
     let gl = this.ctx;
@@ -46,11 +43,8 @@ export class MinecraftAnimation extends CanvasAnimation {
     // Generate initial landscape
     this.chunk = new Chunk(0.0, 0.0, 64);
 
-    this.blankCubeRenderPass = new RenderPass(
-      gl,
-      blankCubeVSText,
-      blankCubeFSText
-    );
+    this.blankCubeRenderPass =
+        new RenderPass(gl, blankCubeVSText, blankCubeFSText);
     this.cubeGeometry = new Cube();
     this.initBlankCube();
 
@@ -72,85 +66,42 @@ export class MinecraftAnimation extends CanvasAnimation {
    */
   private initBlankCube(): void {
     this.blankCubeRenderPass.setIndexBufferData(
-      this.cubeGeometry.indicesFlat()
-    );
+        this.cubeGeometry.indicesFlat());
     this.blankCubeRenderPass.addAttribute(
-      "aVertPos",
-      4,
-      this.ctx.FLOAT,
-      false,
-      4 * Float32Array.BYTES_PER_ELEMENT,
-      0,
-      undefined,
-      this.cubeGeometry.positionsFlat()
-    );
+        'aVertPos', 4, this.ctx.FLOAT, false,
+        4 * Float32Array.BYTES_PER_ELEMENT, 0, undefined,
+        this.cubeGeometry.positionsFlat());
 
     this.blankCubeRenderPass.addAttribute(
-      "aNorm",
-      4,
-      this.ctx.FLOAT,
-      false,
-      4 * Float32Array.BYTES_PER_ELEMENT,
-      0,
-      undefined,
-      this.cubeGeometry.normalsFlat()
-    );
+        'aNorm', 4, this.ctx.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT,
+        0, undefined, this.cubeGeometry.normalsFlat());
 
     this.blankCubeRenderPass.addAttribute(
-      "aUV",
-      2,
-      this.ctx.FLOAT,
-      false,
-      2 * Float32Array.BYTES_PER_ELEMENT,
-      0,
-      undefined,
-      this.cubeGeometry.uvFlat()
-    );
+        'aUV', 2, this.ctx.FLOAT, false, 2 * Float32Array.BYTES_PER_ELEMENT, 0,
+        undefined, this.cubeGeometry.uvFlat());
 
     this.blankCubeRenderPass.addInstancedAttribute(
-      "aOffset",
-      4,
-      this.ctx.FLOAT,
-      false,
-      4 * Float32Array.BYTES_PER_ELEMENT,
-      0,
-      undefined,
-      new Float32Array(0)
-    );
+        'aOffset', 4, this.ctx.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT,
+        0, undefined, new Float32Array(0));
 
     this.blankCubeRenderPass.addUniform(
-      "uLightPos",
-      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-        gl.uniform4fv(loc, this.lightPosition.xyzw);
-      }
-    );
+        'uLightPos', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniform4fv(loc, this.lightPosition.xyzw);
+        });
     this.blankCubeRenderPass.addUniform(
-      "uProj",
-      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-        gl.uniformMatrix4fv(
-          loc,
-          false,
-          new Float32Array(this.gui.projMatrix().all())
-        );
-      }
-    );
+        'uProj', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniformMatrix4fv(
+              loc, false, new Float32Array(this.gui.projMatrix().all()));
+        });
     this.blankCubeRenderPass.addUniform(
-      "uView",
-      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-        gl.uniformMatrix4fv(
-          loc,
-          false,
-          new Float32Array(this.gui.viewMatrix().all())
-        );
-      }
-    );
+        'uView', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniformMatrix4fv(
+              loc, false, new Float32Array(this.gui.viewMatrix().all()));
+        });
 
     this.blankCubeRenderPass.setDrawData(
-      this.ctx.TRIANGLES,
-      this.cubeGeometry.indicesFlat().length,
-      this.ctx.UNSIGNED_INT,
-      0
-    );
+        this.ctx.TRIANGLES, this.cubeGeometry.indicesFlat().length,
+        this.ctx.UNSIGNED_INT, 0);
     this.blankCubeRenderPass.setup();
   }
 
@@ -176,7 +127,8 @@ export class MinecraftAnimation extends CanvasAnimation {
     gl.frontFace(gl.CCW);
     gl.cullFace(gl.BACK);
 
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null); // null is the default frame buffer
+    gl.bindFramebuffer(
+        gl.FRAMEBUFFER, null);  // null is the default frame buffer
     this.drawScene(0, 0, 1280, 960);
   }
 
@@ -186,10 +138,18 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     // TODO: Render multiple chunks around the player, using Perlin noise
     // shaders
+
+    let chunk_coord: Vec3 = this.chunk.getChunkCenter();
+    let player_cord: Vec3 = this.playerPosition;
+    if (Math.abs(player_cord.x - chunk_coord.x) < 32 &&
+        Math.abs(player_cord.z - chunk_coord.y) < 32) {
+      console.log('YES');
+    }
+
+
+
     this.blankCubeRenderPass.updateAttributeBuffer(
-      "aOffset",
-      this.chunk.cubePositions()
-    );
+        'aOffset', this.chunk.cubePositions());
     this.blankCubeRenderPass.drawInstanced(this.chunk.numCubes());
   }
 
@@ -204,7 +164,7 @@ export class MinecraftAnimation extends CanvasAnimation {
 }
 
 export function initializeCanvas(): void {
-  const canvas = document.getElementById("glCanvas") as HTMLCanvasElement;
+  const canvas = document.getElementById('glCanvas') as HTMLCanvasElement;
   /* Start drawing */
   const canvasAnimation: MinecraftAnimation = new MinecraftAnimation(canvas);
   canvasAnimation.start();
