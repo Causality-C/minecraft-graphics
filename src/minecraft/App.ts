@@ -138,16 +138,10 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     // TODO: Render multiple chunks around the player, using Perlin noise
     // shaders
-
     let chunk_coord: Vec3 = this.chunk.getChunkCenter();
     let player_cord: Vec3 = this.playerPosition;
-    if (Math.abs(player_cord.x - chunk_coord.x) < 32 &&
-        Math.abs(player_cord.z - chunk_coord.y) < 32) {
-      console.log('YES');
-    }
 
-
-
+    // TODO: Render instances of cubes that are seen by the player
     this.blankCubeRenderPass.updateAttributeBuffer(
         'aOffset', this.chunk.cubePositions());
     this.blankCubeRenderPass.drawInstanced(this.chunk.numCubes());
