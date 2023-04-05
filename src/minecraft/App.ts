@@ -12,7 +12,7 @@ import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
 export class MinecraftAnimation extends CanvasAnimation {
   private gui: GUI;
 
-  chunk: Chunk;
+  chunks: {}
 
   /*  Cube Rendering */
   private cubeGeometry: Cube;
@@ -41,7 +41,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.playerPosition = this.gui.getCamera().pos();
 
     // Generate initial landscape
-    this.chunk = new Chunk(0.0, 0.0, 64);
+    this.chunks = {}
 
     this.blankCubeRenderPass =
         new RenderPass(gl, blankCubeVSText, blankCubeFSText);
@@ -50,6 +50,33 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     this.lightPosition = new Vec4([-1000, 1000, -1000, 1]);
     this.backgroundColor = new Vec4([0.0, 0.37254903, 0.37254903, 1.0]);
+  }
+
+  private generateChunks() {
+    let centerX = Math.floor((this.playerPosition.x + 32.0) / 64.0) * 64.0;
+    let centerZ = Math.floor((this.playerPosition.z + 32.0) / 64.0) * 64.0;
+
+    let xCoords: number[] = []
+    let zCoords: number[] = []
+
+    for (let i = -1; i <= 1; i++) {
+        for (let j = -1; j <=1; j++) {
+            xCoords.push(centerX + 64.0 * i);
+            zCoords.push(centerZ + 64.0 * j);
+        }
+    }
+
+    let newChunks = {};
+    for (let i = 0; i < 9; i++) {
+        const key = `${xCoords[i]}_${zCoords[i]}`;
+        if (key in this.chunks) {
+            newChunks[key] = this.chunks[key];
+        }
+        else {
+            newChunks[key] = new Chunk(xCoords[i], zCoords[i], 64);
+        }
+    }
+    this.chunks = newChunks;
   }
 
   /**
@@ -117,6 +144,8 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     this.gui.getCamera().setPos(this.playerPosition);
 
+    this.generateChunks();
+
     // Drawing
     const gl: WebGLRenderingContext = this.ctx;
     const bg: Vec4 = this.backgroundColor;
@@ -138,13 +167,18 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     // TODO: Render multiple chunks around the player, using Perlin noise
     // shaders
-    let chunk_coord: Vec3 = this.chunk.getChunkCenter();
-    let player_cord: Vec3 = this.playerPosition;
+    // let chunk_coord: Vec3 = this.chunk.getChunkCenter();
+    // let player_cord: Vec3 = this.playerPosition;
 
     // TODO: Render instances of cubes that are seen by the player
-    this.blankCubeRenderPass.updateAttributeBuffer(
-        'aOffset', this.chunk.cubePositions());
-    this.blankCubeRenderPass.drawInstanced(this.chunk.numCubes());
+    for (let chunk in this.chunks) {
+        this.blankCubeRenderPass.updateAttributeBuffer(
+            'aOffset', this.chunks[chunk].cubePositions());
+        this.blankCubeRenderPass.drawInstanced(this.chunks[chunk].numCubes());
+    }
+    // this.blankCubeRenderPass.updateAttributeBuffer(
+    //     'aOffset', this.chunk.cubePositions());
+    // this.blankCubeRenderPass.drawInstanced(this.chunk.numCubes());
   }
 
   public getGUI(): GUI {

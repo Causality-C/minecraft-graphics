@@ -77,8 +77,7 @@ export class Chunk {
           let a = this.safeIndex(j + 1, k, oldDim);
           let b = this.safeIndex(j + 1, k + 1, oldDim);
           let newHeight = (9 * cubePositionsF32[d] + 3 * cubePositionsF32[c] +
-                           3 * cubePositionsF32[a] + cubePositionsF32[b]) /
-              16;
+                           3 * cubePositionsF32[a] + cubePositionsF32[b]) / 16;
           let newIdx = newDim * j + k;
           cubePositionsF32Updated[newIdx] = newHeight;
         }
@@ -111,7 +110,7 @@ export class Chunk {
     // you how to use the pseudorandom number generator to create a few cubes.
     this.cubes = this.size * this.size;
     // this.cubePositionsF32 = new Float32Array(4 * this.cubes);
-    const seed = '4100';
+    const seed = `${topleftx}_${toplefty}`;
     let rng = new Rand(seed);
 
     // Create multiple layers of value noise
