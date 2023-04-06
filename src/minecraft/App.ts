@@ -72,8 +72,8 @@ export class MinecraftAnimation extends CanvasAnimation {
       if (key in this.chunks) {
         newChunks[key] = this.chunks[key];
       } else {
-        // newChunks[key] = new Chunk(xCoords[i], zCoords[i], 64);
-        newChunks[key] = new Chunk(xCoords[i], zCoords[i], 8);
+        newChunks[key] = new Chunk(xCoords[i], zCoords[i], 64);
+        // newChunks[key] = new Chunk(xCoords[i], zCoords[i], 8);
       }
     }
     this.chunks = newChunks;

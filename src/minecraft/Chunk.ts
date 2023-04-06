@@ -229,12 +229,14 @@ export class Chunk {
           let a_h = cubePositionsF32[a_i];
 
           // console.log(d_i, c_i, a_i, b_i);
-          console.log(d, c, a, b);
+          // console.log(d, c, a, b);
           // console.log([j / (newDim - 1), k / (newDim - 1)]);
+
+          // Taken from ray tracer code
           let x0 = d[0];
-          let x1 = a[0];
+          let x1 = x0 + 1 / (oldDim - 1);
           let y0 = d[1];
-          let y1 = c[1];
+          let y1 = y0 + 1 / (oldDim - 1);
 
           let x = j / (newDim - 1);
           let y = k / (newDim - 1);
@@ -242,42 +244,16 @@ export class Chunk {
           let val = (d_h * (x1 - x) * (y1 - y) + a_h * (x - x0) * (y1 - y) +
                      c_h * (x1 - x) * (y - y0) + b_h * (x - x0) * (y - y0)) *
               ((oldDim - 1) ** 2);
-          console.log(
-              (x1 - x) * (y1 - y) * ((oldDim - 1) ** 2),
-              (x - x0) * (y1 - y) * ((oldDim - 1) ** 2),
-              (x1 - x) * (y - y0) * ((oldDim - 1) ** 2),
-              (x - x0) * (y - y0) * ((oldDim - 1) ** 2));
+          // console.log(
+          //     (x1 - x) * (y1 - y) * ((oldDim - 1) ** 2),
+          //     (x - x0) * (y1 - y) * ((oldDim - 1) ** 2),
+          //     (x1 - x) * (y - y0) * ((oldDim - 1) ** 2),
+          //     (x - x0) * (y - y0) * ((oldDim - 1) ** 2));
 
           // Update this thing
           cubePositionsF32Updated[idx] = val;
         }
       }
-      // Take the inner part of the array
-
-      // for (let j = 0; j < oldDim; j++) {
-      //   for (let k = 0; k < oldDim; k++) {
-      //     let idx = size * j + k;
-      //     let newIdx = newDim * (j * 2) + k * 2;
-      //     cubePositionsF32Updated[newIdx] = cubePositionsF32[idx];
-      //   }
-      // }
-      // // Now bilinearly interpolate with (9d + 3c + 3a + b) / 16
-      // for (let j = 0; j < newDim; j++) {
-      //   for (let k = 0; k < newDim; k++) {
-      //     // Compute indices of 4 surrounding points
-      //     let d = this.safeIndex(j, k, oldDim);
-      //     let c = this.safeIndex(j, k + 1, oldDim);
-      //     let a = this.safeIndex(j + 1, k, oldDim);
-      //     let b = this.safeIndex(j + 1, k + 1, oldDim);
-      //     let newHeight = (9 * cubePositionsF32[d] + 3 *
-      //     cubePositionsF32[c]
-      //     +
-      //                      3 * cubePositionsF32[a] + cubePositionsF32[b]) /
-      //         16;
-      //     let newIdx = newDim * j + k;
-      //     cubePositionsF32Updated[newIdx] = newHeight;
-      //   }
-      // }
       // Now replace old array with new array
       cubePositionsF32 = cubePositionsF32Updated;
     }
@@ -285,8 +261,18 @@ export class Chunk {
 
     // Step 5: Return the inner sections of the noise array corresponding
     // to the non-padded parts (which should be this.size x this.size)
+    let sideLength = Math.floor(Math.sqrt(cubePositionsF32.length));
+    let retArray: Float32Array = new Float32Array(this.size * this.size);
+    let padding = (sideLength - this.size) / 2;
+    for (let i = padding; i < this.size + padding; i++) {
+      for (let j = padding; j < this.size + padding; j++) {
+        let retIndex = (i - padding) * this.size + (j - padding);
+        let idx = (i) * sideLength + (j);
+        retArray[retIndex] = cubePositionsF32[idx];
+      }
+    }
 
-    return new Float32Array([]);
+    return retArray;
   }
   private numCubesDrawn(arr: Float32Array, i: number, j: number): number {
     const idx = this.size * i + j;
