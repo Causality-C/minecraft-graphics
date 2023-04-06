@@ -43,7 +43,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     // Generate initial landscape
     this.chunks = {}
 
-    this.blankCubeRenderPass =
+                  this.blankCubeRenderPass =
         new RenderPass(gl, blankCubeVSText, blankCubeFSText);
     this.cubeGeometry = new Cube();
     this.initBlankCube();
@@ -56,25 +56,25 @@ export class MinecraftAnimation extends CanvasAnimation {
     let centerX = Math.floor((this.playerPosition.x + 32.0) / 64.0) * 64.0;
     let centerZ = Math.floor((this.playerPosition.z + 32.0) / 64.0) * 64.0;
 
-    let xCoords: number[] = []
-    let zCoords: number[] = []
+    let xCoords: number[] = [];
+    let zCoords: number[] = [];
 
     for (let i = -1; i <= 1; i++) {
-        for (let j = -1; j <=1; j++) {
-            xCoords.push(centerX + 64.0 * i);
-            zCoords.push(centerZ + 64.0 * j);
-        }
+      for (let j = -1; j <= 1; j++) {
+        xCoords.push(centerX + 64.0 * i);
+        zCoords.push(centerZ + 64.0 * j);
+      }
     }
 
     let newChunks = {};
     for (let i = 0; i < 9; i++) {
-        const key = `${xCoords[i]}_${zCoords[i]}`;
-        if (key in this.chunks) {
-            newChunks[key] = this.chunks[key];
-        }
-        else {
-            newChunks[key] = new Chunk(xCoords[i], zCoords[i], 64);
-        }
+      const key = `${xCoords[i]}_${zCoords[i]}`;
+      if (key in this.chunks) {
+        newChunks[key] = this.chunks[key];
+      } else {
+        // newChunks[key] = new Chunk(xCoords[i], zCoords[i], 64);
+        newChunks[key] = new Chunk(xCoords[i], zCoords[i], 8);
+      }
     }
     this.chunks = newChunks;
   }
@@ -172,9 +172,9 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     // TODO: Render instances of cubes that are seen by the player
     for (let chunk in this.chunks) {
-        this.blankCubeRenderPass.updateAttributeBuffer(
-            'aOffset', this.chunks[chunk].cubePositions());
-        this.blankCubeRenderPass.drawInstanced(this.chunks[chunk].numCubes());
+      this.blankCubeRenderPass.updateAttributeBuffer(
+          'aOffset', this.chunks[chunk].cubePositions());
+      this.blankCubeRenderPass.drawInstanced(this.chunks[chunk].numCubes());
     }
     // this.blankCubeRenderPass.updateAttributeBuffer(
     //     'aOffset', this.chunk.cubePositions());
