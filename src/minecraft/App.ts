@@ -29,6 +29,8 @@ export class MinecraftAnimation extends CanvasAnimation {
   // radially.
   private playerPosition: Vec3;
 
+  private chunkSize = 64.0;
+
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
 
@@ -53,16 +55,23 @@ export class MinecraftAnimation extends CanvasAnimation {
   }
 
   private generateChunks() {
-    let centerX = Math.floor((this.playerPosition.x + 32.0) / 64.0) * 64.0;
-    let centerZ = Math.floor((this.playerPosition.z + 32.0) / 64.0) * 64.0;
+    let centerX =
+        Math.floor(
+            (this.playerPosition.x + this.chunkSize / 2) / this.chunkSize) *
+        this.chunkSize;
+    let centerZ =
+        Math.floor(
+            (this.playerPosition.z + this.chunkSize / 2) / this.chunkSize) *
+        this.chunkSize;
+    console.log(centerX, centerZ);
 
     let xCoords: number[] = [];
     let zCoords: number[] = [];
 
     for (let i = -1; i <= 1; i++) {
       for (let j = -1; j <= 1; j++) {
-        xCoords.push(centerX + 64.0 * i);
-        zCoords.push(centerZ + 64.0 * j);
+        xCoords.push(centerX + this.chunkSize * i);
+        zCoords.push(centerZ + this.chunkSize * j);
       }
     }
 

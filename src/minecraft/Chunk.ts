@@ -50,65 +50,40 @@ export class Chunk {
     return i * oldDim + j;
   }
 
-  private generateValueNoiseOfSize(size: number, rng: Rand, octaves: number):
-      Float32Array {
-    // size should be the width of the current chunk, which we will upsample
-    // and interpolate
-    let cubePositionsF32: Float32Array = new Float32Array(size * size);
-    let scaleFactor = (1.0 / ((size / this.size) * (2 ** (octaves - 1)))) / 2;
-    let upsampleFactor = Math.floor(Math.log2(this.size / size));
 
-    // First create an array of random values
-    for (let i = 0; i < size; i++) {
-      for (let j = 0; j < size; j++) {
-        const height = Math.floor(this.maxHeight * rng.next());
-        const idx = size * i + j;
-        cubePositionsF32[idx] = height * scaleFactor;
+  private apply2x2KernelToSquareMatrix(
+      kernel: Float32Array, matrix: Float32Array): Float32Array {
+    let matrixDim = Math.floor(Math.sqrt(matrix.length));
+    if (matrixDim ** 2 !== matrix.length) {
+      throw new Error('Matrix is not square');
+    } else {
+      // New matrix dim is one less than old matrix dim
+      matrixDim--;
+    }
+    let filteredMatrix = new Float32Array(matrixDim * matrixDim);
+    // Apply Kernel
+    for (let i = 0; i < matrixDim; i++) {
+      for (let j = 0; j < matrixDim; j++) {
+        let newIdx = matrixDim * i + j;
+        let idx = (matrixDim + 1) * i + j;
+        let nextIdx = (matrixDim + 1) * (i + 1) + j;
+        filteredMatrix[newIdx] = kernel[0] * matrix[idx] +
+            kernel[1] * matrix[idx + 1] + kernel[2] * matrix[nextIdx] +
+            kernel[3] * matrix[nextIdx + 1];
+        filteredMatrix[newIdx] /= 16;
       }
     }
-    // Then, upsample the array
-    for (let i = 0; i < upsampleFactor; i++) {
-      // Create new array with 2x dimensions of first
-      let oldDim = Math.sqrt(cubePositionsF32.length);
-      let newDim = oldDim * 2;
-      let cubePositionsF32Updated = new Float32Array((newDim) * (newDim));
-      // We would like lower resolution values to have a larger effect on the
-      // noise
-      // Copy over old values
-      for (let j = 0; j < oldDim; j++) {
-        for (let k = 0; k < oldDim; k++) {
-          let idx = size * j + k;
-          let newIdx = newDim * (j * 2) + k * 2;
-          cubePositionsF32Updated[newIdx] = cubePositionsF32[idx];
-        }
-      }
-      // Now bilinearly interpolate with (9d + 3c + 3a + b) / 16
-      for (let j = 0; j < newDim; j++) {
-        for (let k = 0; k < newDim; k++) {
-          // Compute indices of 4 surrounding points
-          let d = this.safeIndex(j, k, oldDim);
-          let c = this.safeIndex(j, k + 1, oldDim);
-          let a = this.safeIndex(j + 1, k, oldDim);
-          let b = this.safeIndex(j + 1, k + 1, oldDim);
-          let newHeight = (9 * cubePositionsF32[d] + 3 * cubePositionsF32[c] +
-                           3 * cubePositionsF32[a] + cubePositionsF32[b]) /
-              16;
-          let newIdx = newDim * j + k;
-          cubePositionsF32Updated[newIdx] = newHeight;
-        }
-      }
-      // Now replace old array with new array
-      cubePositionsF32 = cubePositionsF32Updated;
-    }
-    return cubePositionsF32;
+    return filteredMatrix;
   }
-
-  private generateValueNoiseOfUpdatedSize(
-      size: number, rng: Rand, octaves: number): Float32Array {
+  private generateValueNoiseOfUpdatedSize(size: number, octaves: number):
+      Float32Array {
     // Step 1: Allocate noise array with (size + 1) x (size + 1) elements
+    let seed = `${this.x}_${this.y}_${size}`;
+    let rng: Rand = new Rand(seed);
     let paddedSize = size + 2;
     let cubePositionsF32: Float32Array = new Float32Array(paddedSize ** 2);
     let scaleFactor = (1.0 / ((size / this.size) * (2 ** (octaves - 1)))) / 2;
+    let upsampleFactor = Math.floor(Math.log2(this.size / size));
 
     // Step 2: Fill in the non-padded parts of the noise array with value
     // noise
@@ -120,26 +95,28 @@ export class Chunk {
       }
     }
 
+
     // Step 3: Fill in padded parts of the noise array with noise from other
     // chunks
-    const seedTop = `${this.x}_${this.y - this.size}`;
-    const seedBottom = `${this.x}_${this.y + this.size}`;
-    const seedLeft = `${this.x - this.size}_${this.y}`;
-    const seedRight = `${this.x + this.size}_${this.y}`;
-    const seedBRight = `${this.x + this.size}_${this.y + this.size}`;
-    const seedBLeft = `${this.x - this.size}_${this.y + this.size}`;
-    const seedTRight = `${this.x + this.size}_${this.y - this.size}`;
-    const seedTLeft = `${this.x - this.size}_${this.y - this.size}`;
+    const seedTop = `${this.x - this.size}_${this.y}_${size}`;
+    const seedBottom = `${this.x + this.size}_${this.y}_${size}`;
+    const seedLeft = `${this.x}_${this.y - this.size}_${size}`;
+    const seedRight = `${this.x}_${this.y + this.size}_${size}`;
+    const seedBRight = `${this.x + this.size}_${this.y + this.size}_${size}`;
+    const seedBLeft = `${this.x + this.size}_${this.y - this.size}_${size}`;
+    const seedTRight = `${this.x - this.size}_${this.y + this.size}_${size}`;
+    const seedTLeft = `${this.x - this.size}_${this.y - this.size}_${size}`;
     const seeds = [
       seedTop, seedBottom, seedLeft, seedRight, seedBRight, seedBLeft,
       seedTRight, seedTLeft
     ];
     let noiseArrays = seeds.map(seed => {
-      let rng: Rand = new Rand(seed);
+      // Generate RNG at the same layer
+      let newRNG: Rand = new Rand(seed);
       let arr: Float32Array = new Float32Array(size * size);
       for (let i = 0; i < size; i++) {
         for (let j = 0; j < size; j++) {
-          const height = Math.floor(this.maxHeight * rng.next());
+          const height = Math.floor(this.maxHeight * newRNG.next());
           const idx = size * i + j;
           arr[idx] = height * scaleFactor;
         }
@@ -187,71 +164,45 @@ export class Chunk {
 
     // Step 4: Bilinearly Interpolate the noise array repeatedly to get the
     // desired size) using uv coordintes
-    let upsampleFactor = Math.floor(Math.log2(this.size / size));
+
+    // Create interpolation filters of 9 3 3 1
+    let tLeft = new Float32Array([9, 3, 3, 1]);
+    let tRight = new Float32Array([3, 9, 1, 3]);
+    let bLeft = new Float32Array([3, 1, 9, 3]);
+    let bRight = new Float32Array([1, 3, 3, 9]);
 
     // Then, upsample the array
     for (let i = 0; i < upsampleFactor; i++) {
       // Create new array with 2x dimensions of first
       let oldDim = Math.sqrt(cubePositionsF32.length);
-      let newDim = oldDim * 2;
+      let newDim = (oldDim - 2) * 2 + 2;
       let cubePositionsF32Updated = new Float32Array((newDim) * (newDim));
-      // We would like lower resolution values to have a larger effect on the
-      // noise
+      // Convolution Matrix with 2x2 kernels does bilinear interpolation cleanly
+      let tLeftMat = this.apply2x2KernelToSquareMatrix(tLeft, cubePositionsF32);
+      let tRightMat =
+          this.apply2x2KernelToSquareMatrix(tRight, cubePositionsF32);
+      let bLeftMat = this.apply2x2KernelToSquareMatrix(bLeft, cubePositionsF32);
+      let bRightMat =
+          this.apply2x2KernelToSquareMatrix(bRight, cubePositionsF32);
+
+      let matLen = Math.sqrt(bLeftMat.length);
       for (let j = 0; j < newDim; j++) {
         for (let k = 0; k < newDim; k++) {
-          // Bilinearly interpolate
-          let d_i = this.safeIndex(j, k, oldDim);
-          let c_i = ((d_i % oldDim) === (oldDim - 1)) ? d_i : d_i + 1;
-          let a_i = (d_i + oldDim >= oldDim ** 2) ? d_i : d_i + oldDim;
-          let b_i = ((a_i % oldDim) === (oldDim - 1)) ? a_i : a_i + 1;
-
-          let d = [
-            Math.floor(d_i / oldDim) / (oldDim - 1),
-            (d_i % oldDim) / (oldDim - 1)
-          ];
-          let c = [
-            Math.floor(c_i / oldDim) / (oldDim - 1),
-            (c_i % oldDim) / (oldDim - 1)
-          ];
-          let b = [
-            Math.floor(b_i / oldDim) / (oldDim - 1),
-            (b_i % oldDim) / (oldDim - 1)
-          ];
-          let a = [
-            Math.floor(a_i / oldDim) / (oldDim - 1),
-            (a_i % oldDim) / (oldDim - 1)
-          ];
-
-          // heights
-          let d_h = cubePositionsF32[d_i];
-          let c_h = cubePositionsF32[c_i];
-          let b_h = cubePositionsF32[b_i];
-          let a_h = cubePositionsF32[a_i];
-
-          // console.log(d_i, c_i, a_i, b_i);
-          // console.log(d, c, a, b);
-          // console.log([j / (newDim - 1), k / (newDim - 1)]);
-
-          // Taken from ray tracer code
-          let x0 = d[0];
-          let x1 = x0 + 1 / (oldDim - 1);
-          let y0 = d[1];
-          let y1 = y0 + 1 / (oldDim - 1);
-
-          let x = j / (newDim - 1);
-          let y = k / (newDim - 1);
-          let idx = (newDim) * j + k;
-          let val = (d_h * (x1 - x) * (y1 - y) + a_h * (x - x0) * (y1 - y) +
-                     c_h * (x1 - x) * (y - y0) + b_h * (x - x0) * (y - y0)) *
-              ((oldDim - 1) ** 2);
-          // console.log(
-          //     (x1 - x) * (y1 - y) * ((oldDim - 1) ** 2),
-          //     (x - x0) * (y1 - y) * ((oldDim - 1) ** 2),
-          //     (x1 - x) * (y - y0) * ((oldDim - 1) ** 2),
-          //     (x - x0) * (y - y0) * ((oldDim - 1) ** 2));
-
-          // Update this thing
-          cubePositionsF32Updated[idx] = val;
+          let idx = j * newDim + k;
+          let idxj = Math.floor(j / 2);
+          let idxk = Math.floor(k / 2);
+          let value = 0;
+          // Use different kernels depending on whether j and k are even or odd
+          if (j % 2 === 0 && k % 2 === 0) {
+            value = tLeftMat[idxj * matLen + idxk];
+          } else if (j % 2 === 0 && k % 2 === 1) {
+            value = tRightMat[idxj * matLen + idxk];
+          } else if (j % 2 === 1 && k % 2 === 0) {
+            value = bLeftMat[idxj * matLen + idxk];
+          } else {
+            value = bRightMat[idxj * matLen + idxk];
+          }
+          cubePositionsF32Updated[idx] = value;
         }
       }
       // Now replace old array with new array
@@ -261,13 +212,12 @@ export class Chunk {
 
     // Step 5: Return the inner sections of the noise array corresponding
     // to the non-padded parts (which should be this.size x this.size)
-    let sideLength = Math.floor(Math.sqrt(cubePositionsF32.length));
     let retArray: Float32Array = new Float32Array(this.size * this.size);
-    let padding = (sideLength - this.size) / 2;
-    for (let i = padding; i < this.size + padding; i++) {
-      for (let j = padding; j < this.size + padding; j++) {
-        let retIndex = (i - padding) * this.size + (j - padding);
-        let idx = (i) * sideLength + (j);
+    for (let i = 1; i < this.size + 1; i++) {
+      for (let j = 1; j < this.size + 1; j++) {
+        let retIndex = (i - 1) * this.size + (j - 1);
+        let idx = (i) * (this.size + 2) + (j);
+
         retArray[retIndex] = cubePositionsF32[idx];
       }
     }
@@ -297,8 +247,8 @@ export class Chunk {
     // you how to use the pseudorandom number generator to create a few cubes.
     this.cubes = this.size * this.size;
     // this.cubePositionsF32 = new Float32Array(4 * this.cubes);
-    const seed = `${topleftx}_${toplefty}`;
-    let rng = new Rand(seed);
+    // const seed = `${topleftx}_${toplefty}`;
+    // let rng = new Rand(seed);
 
     // Create multiple layers of value noise
     let octaves = 6;
@@ -307,14 +257,13 @@ export class Chunk {
       // Scale and blend them together to avoid overflow (heights should be
       // 0-100)
       let blockWidth: number = Math.floor((this.size) / (2 ** i));
-      let noise: Float32Array =
-          this.generateValueNoiseOfSize(blockWidth, rng, octaves);
       let something: Float32Array =
-          this.generateValueNoiseOfUpdatedSize(blockWidth, rng, octaves);
+          this.generateValueNoiseOfUpdatedSize(blockWidth, octaves);
+
       // Verify that the size of the arrays match
       // Adds the noise to the heightMap
       heightMap = heightMap.map((value: number, index: number) => {
-        return value + noise[index];
+        return value + something[index];
       });
     }
     // Analyze height map and render more cubes with the appropriate heights
@@ -344,17 +293,19 @@ export class Chunk {
         if (i !== 0 && j !== 0 && i !== this.size - 1 && j !== this.size - 1) {
           const numCubes = this.numCubesDrawn(heightMap, i, j);
           for (let k = 0; k < numCubes; k++) {
-            this.cubePositionsF32[4 * pos + 0] = topleftx + j;
+            // Changed cube orientation so that x is i and y is j
+            this.cubePositionsF32[4 * pos + 0] = topleftx + i;
             this.cubePositionsF32[4 * pos + 1] = height - k;
-            this.cubePositionsF32[4 * pos + 2] = toplefty + i;
+            this.cubePositionsF32[4 * pos + 2] = toplefty + j;
             this.cubePositionsF32[4 * pos + 3] = 0;
             pos++;
           }
         } else {
           for (let k = 0; k < height; k++) {
-            this.cubePositionsF32[4 * pos + 0] = topleftx + j;
+            // Changed cube orientation so that x is i and y is j
+            this.cubePositionsF32[4 * pos + 0] = topleftx + i;
             this.cubePositionsF32[4 * pos + 1] = height - k;
-            this.cubePositionsF32[4 * pos + 2] = toplefty + i;
+            this.cubePositionsF32[4 * pos + 2] = toplefty + j;
             this.cubePositionsF32[4 * pos + 3] = 0;
             pos++;
           }
