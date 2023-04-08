@@ -1,5 +1,6 @@
+import {Config} from './App.js';
 import Rand from '../lib/rand-seed/Rand.js';
-import {Mat3, Mat4, Vec3, Vec4} from '../lib/TSM.js';
+import {Mat3, Mat4, Vec2, Vec3, Vec4} from '../lib/TSM.js';
 
 export class Chunk {
   private cubes: number;  // Number of cubes that should be *drawn* each frame
@@ -10,6 +11,7 @@ export class Chunk {
   private y: number;
   private size: number;  // Number of cubes along each side of the chunk
   private maxHeight: number = 40;
+  private heightMap: Float32Array;
 
   constructor(centerX: number, centerY: number, size: number) {
     this.x = centerX;
@@ -17,6 +19,48 @@ export class Chunk {
     this.size = size;
     this.cubes = size * size;
     this.generateCubes();
+  }
+
+  public verticalCollision(cameraLocation: Vec3): number {
+    const topleftx = this.x - this.size / 2;
+    const toplefty = this.y - this.size / 2;
+    const base: number = cameraLocation.y - Config.PLAYER_HEIGHT;
+    const x = Math.round(cameraLocation.x - topleftx);
+    const y = Math.round(cameraLocation.z - toplefty);
+    if (x >= 0 && y >= 0 && x < this.size && y < this.size) {
+        const height = Math.floor(this.heightMap[x * this.size + y]);
+        if (base < height) {
+            return height;
+        }
+    }
+    return Number.MIN_SAFE_INTEGER;
+  }
+
+  public sideCollision(cameraLocation: Vec3): boolean {
+    // console.log(cameraLocation.x + " " + cameraLocation.z);
+    const topleftx = this.x - this.size / 2;
+    const toplefty = this.y - this.size / 2;
+    const base: number = cameraLocation.y - Config.PLAYER_HEIGHT;
+    for (let i = -1; i <= 1; i++) {
+        for (let j = -1; j <= 1; j++) {
+            let point: Vec2 = new Vec2([i == 0 ? cameraLocation.x : Math.round(cameraLocation.x) - 0.5 + i,
+                                        j == 0 ? cameraLocation.z : Math.round(cameraLocation.z) - 0.5 + j]);
+            point.add(new Vec2([i == -1 ? 1 : 0, j == -1 ? 1 : 0]))
+            let distance = Vec2.distance(point, new Vec2([cameraLocation.x, cameraLocation.z]));
+            // console.log(i + "," + j + " : " + distance)
+            if (distance < Config.PLAYER_RADIUS) {
+                const x = Math.round(cameraLocation.x - topleftx) + i;
+                const y = Math.round(cameraLocation.z - toplefty) + j;
+                if (x >= 0 && y >= 0 && x < this.size && y < this.size) {
+                    const height = Math.floor(this.heightMap[x * this.size + y]);
+                    if (base < height) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
   }
 
   // Returns the index of the old cube
@@ -252,7 +296,7 @@ export class Chunk {
 
     // Create multiple layers of value noise
     let octaves = 6;
-    let heightMap: Float32Array = new Float32Array(this.size * this.size);
+    this.heightMap = new Float32Array(this.size * this.size);
     for (let i = 0; i < octaves; i++) {
       // Scale and blend them together to avoid overflow (heights should be
       // 0-100)
@@ -261,8 +305,8 @@ export class Chunk {
           this.generateValueNoiseOfUpdatedSize(blockWidth, octaves);
 
       // Verify that the size of the arrays match
-      // Adds the noise to the heightMap
-      heightMap = heightMap.map((value: number, index: number) => {
+      // Adds the noise to the this.heightMap
+      this.heightMap = this.heightMap.map((value: number, index: number) => {
         return value + something[index];
       });
     }
@@ -272,10 +316,10 @@ export class Chunk {
     for (let i = 0; i < this.size; i++) {
       for (let j = 0; j < this.size; j++) {
         const idx = this.size * i + j;
-        const height = Math.floor(heightMap[idx]);
+        const height = Math.floor(this.heightMap[idx]);
         if (i !== 0 && j !== 0 && i !== this.size - 1 && j !== this.size - 1) {
           // Only render the cubes that are on and above the minimum neighbor
-          totalCubes += this.numCubesDrawn(heightMap, i, j);
+          totalCubes += this.numCubesDrawn(this.heightMap, i, j);
         } else {
           // If we are on the edge, we want to render the cube
           // TODO: logic to not render if there is a neighbor chunk
@@ -289,9 +333,9 @@ export class Chunk {
     for (let i = 0; i < this.size; i++) {
       for (let j = 0; j < this.size; j++) {
         const idx = this.size * i + j;
-        const height = Math.floor(heightMap[idx]);
+        const height = Math.floor(this.heightMap[idx]);
         if (i !== 0 && j !== 0 && i !== this.size - 1 && j !== this.size - 1) {
-          const numCubes = this.numCubesDrawn(heightMap, i, j);
+          const numCubes = this.numCubesDrawn(this.heightMap, i, j);
           for (let k = 0; k < numCubes; k++) {
             // Changed cube orientation so that x is i and y is j
             this.cubePositionsF32[4 * pos + 0] = topleftx + i;

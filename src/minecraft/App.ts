@@ -9,10 +9,19 @@ import {Cube} from './Cube.js';
 import {GUI} from './Gui.js';
 import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
 
+export class Config {
+    public static PLAYER_RADIUS: number = 0.4;
+    public static PLAYER_HEIGHT: number = 2.0;
+    public static CHUNK_SIZE: number = 64.0;
+    public static GRAVITY: number = -9.8;
+    public static JUMP_VELOCITY: number = 10.0;
+}
+
 export class MinecraftAnimation extends CanvasAnimation {
   private gui: GUI;
 
   chunks: {}
+  chunk: Chunk
 
   /*  Cube Rendering */
   private cubeGeometry: Cube;
@@ -28,8 +37,10 @@ export class MinecraftAnimation extends CanvasAnimation {
   // Player should extend two units down from this location, and 0.4 units
   // radially.
   private playerPosition: Vec3;
-
-  private chunkSize = 64.0;
+  private onGround: boolean;
+  private verticalVelocity: Vec3;
+  private gravityTime: number;
+  private frameTime: number;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -41,6 +52,9 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     this.gui = new GUI(this.canvas2d, this);
     this.playerPosition = this.gui.getCamera().pos();
+    this.verticalVelocity = new Vec3();
+    this.gravityTime = Date.now();
+    this.frameTime = Date.now();
 
     // Generate initial landscape
     this.chunks = {}
@@ -54,38 +68,76 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.backgroundColor = new Vec4([0.0, 0.37254903, 0.37254903, 1.0]);
   }
 
+  private chunkKey(x: number, z: number): string {
+    return `${Math.round(x)}_${Math.round(z)}`;
+  }
+
   private generateChunks() {
     let centerX =
         Math.floor(
-            (this.playerPosition.x + this.chunkSize / 2) / this.chunkSize) *
-        this.chunkSize;
+            (this.playerPosition.x + Config.CHUNK_SIZE / 2) / Config.CHUNK_SIZE) *
+        Config.CHUNK_SIZE;
     let centerZ =
         Math.floor(
-            (this.playerPosition.z + this.chunkSize / 2) / this.chunkSize) *
-        this.chunkSize;
-    console.log(centerX, centerZ);
+            (this.playerPosition.z + Config.CHUNK_SIZE / 2) / Config.CHUNK_SIZE) *
+        Config.CHUNK_SIZE;
 
     let xCoords: number[] = [];
     let zCoords: number[] = [];
 
     for (let i = -1; i <= 1; i++) {
       for (let j = -1; j <= 1; j++) {
-        xCoords.push(centerX + this.chunkSize * i);
-        zCoords.push(centerZ + this.chunkSize * j);
+        xCoords.push(centerX + Config.CHUNK_SIZE * i);
+        zCoords.push(centerZ + Config.CHUNK_SIZE * j);
       }
     }
 
     let newChunks = {};
     for (let i = 0; i < 9; i++) {
-      const key = `${xCoords[i]}_${zCoords[i]}`;
+      const key = this.chunkKey(xCoords[i], zCoords[i]);
       if (key in this.chunks) {
         newChunks[key] = this.chunks[key];
       } else {
-        newChunks[key] = new Chunk(xCoords[i], zCoords[i], 64);
-        // newChunks[key] = new Chunk(xCoords[i], zCoords[i], 8);
+        newChunks[key] = new Chunk(xCoords[i], zCoords[i], Config.CHUNK_SIZE);
+      }
+      if (i == 4) {
+        this.chunk = newChunks[key];
       }
     }
     this.chunks = newChunks;
+  }
+
+  private collisionChunks(cameraLocation: Vec3): Chunk[] {
+    let candidates: Chunk[] = [];
+    candidates.push(this.chunk);
+    const center: Vec3 = this.chunk.getChunkCenter();
+    const xMod = cameraLocation.x % Config.CHUNK_SIZE - Config.CHUNK_SIZE / 2;
+    const zMod = cameraLocation.z % Config.CHUNK_SIZE - Config.CHUNK_SIZE / 2;
+    if (zMod <= 0.0 && zMod >= -1.0) {
+        candidates.push(this.chunks[this.chunkKey(center.x, center.z + Config.CHUNK_SIZE)]);
+    }
+    if (zMod >= 0.0 && zMod <= 1.0) {
+        candidates.push(this.chunks[this.chunkKey(center.x, center.z - Config.CHUNK_SIZE)]);
+    }
+    if (xMod <= 0.0 && xMod >= -1.0) {
+        candidates.push(this.chunks[this.chunkKey(center.x + Config.CHUNK_SIZE, center.z)]);
+    }
+    if (xMod >= 0.0 && xMod <= 1.0) {
+        candidates.push(this.chunks[this.chunkKey(center.x - Config.CHUNK_SIZE, center.z)]);
+    }
+    if (zMod <= 0.0 && zMod >= -1.0 && xMod <= 0.0 && xMod >= -1.0) {
+        candidates.push(this.chunks[this.chunkKey(center.x + Config.CHUNK_SIZE, center.z + Config.CHUNK_SIZE)]);
+    }
+    if (zMod <= 0.0 && zMod >= -1.0 && xMod >= 0.0 && xMod <= 1.0) {
+        candidates.push(this.chunks[this.chunkKey(center.x - Config.CHUNK_SIZE, center.z + Config.CHUNK_SIZE)]);
+    }
+    if (zMod >= 0.0 && zMod <= 1.0 && xMod <= 0.0 && xMod >= -1.0) {
+        candidates.push(this.chunks[this.chunkKey(center.x + Config.CHUNK_SIZE, center.z - Config.CHUNK_SIZE)]);
+    }
+    if (zMod >= 0.0 && zMod <= 1.0 && xMod >= 0.0 && xMod <= 1.0) {
+        candidates.push(this.chunks[this.chunkKey(center.x - Config.CHUNK_SIZE, center.z - Config.CHUNK_SIZE)]);
+    }
+    return candidates;
   }
 
   /**
@@ -149,11 +201,45 @@ export class MinecraftAnimation extends CanvasAnimation {
     // TODO: Logic for a rudimentary walking simulator. Check for collisions and
     // reject attempts to walk into a cube. Handle gravity, jumping, and loading
     // of new chunks when necessary.
-    this.playerPosition.add(this.gui.walkDir());
-
-    this.gui.getCamera().setPos(this.playerPosition);
-
     this.generateChunks();
+    let position: Vec3 = new Vec3(this.playerPosition.xyz);
+    position.add(this.gui.walkDir());
+    if (!position.equals(this.playerPosition)) {
+        let chunks: Chunk[] = this.collisionChunks(this.playerPosition);
+        let safe: boolean = true;
+        for (let i = 0; i < chunks.length; i++) {
+            if (chunks[i].sideCollision(position)) {
+                console.log("SIDE COLLISION");
+                this.playerPosition.x = Math.round(this.playerPosition.x);
+                this.playerPosition.z = Math.round(this.playerPosition.z);
+                safe = false;
+                break;
+            }
+        }
+        if (safe) {
+            this.playerPosition = position;
+        }
+    }
+
+    position = new Vec3(this.playerPosition.xyz);
+    let velocity: Vec3 = new Vec3([0.0, Config.GRAVITY * (Date.now() - this.gravityTime) / 1000.0, 0.0]);
+    velocity.add(this.verticalVelocity);
+    velocity.scale((Date.now() - this.frameTime) / 1000.0)
+    position.add(velocity);
+    this.frameTime = Date.now();
+    console.log(velocity, this.frameTime);
+    let height = this.chunk.verticalCollision(position);
+    if (height != Number.MIN_SAFE_INTEGER) {
+        this.playerPosition.y = height + Config.PLAYER_HEIGHT;
+        this.onGround = true;
+        this.verticalVelocity = new Vec3();
+        this.gravityTime = Date.now();
+    }
+    else {
+        this.onGround = false;
+        this.playerPosition = position;
+    }
+    this.gui.getCamera().setPos(this.playerPosition);
 
     // Drawing
     const gl: WebGLRenderingContext = this.ctx;
@@ -197,6 +283,9 @@ export class MinecraftAnimation extends CanvasAnimation {
   public jump() {
     // TODO: If the player is not already in the lair, launch them upwards at 10
     // units/sec.
+    if (this.onGround) {
+        this.verticalVelocity = new Vec3([0.0, Config.JUMP_VELOCITY, 0.0]);
+    }
   }
 }
 
