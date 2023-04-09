@@ -10,10 +10,26 @@ import {GUI} from './Gui.js';
 import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
 
 export class Config {
+  // Radius of player cylinder used for collision checks
   public static PLAYER_RADIUS: number = 0.4;
+
+  // Player height
   public static PLAYER_HEIGHT: number = 2.0;
+
+  // Size of one side of a chunk
   public static CHUNK_SIZE: number = 64.0;
-  public static GRAVITY: number = -9.8;
+
+  // Number of chunks to render outside of the player's chunk
+  // 1 --> 3 x 3, 2 -> 5 x 5, ... n -> 2n+1 x 2n+1
+  public static BORDER_CHUNKS: number = 1.0;
+
+  // Number of chunks to store in cache before resetting; for hysteresis
+  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1)** 2
+
+      // Acceleration due to gravity
+      public static GRAVITY: number = -9.8;
+
+  // Upward velocity when the user presses SPACE
   public static JUMP_VELOCITY: number = 10.0;
 }
 
@@ -21,6 +37,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   private gui: GUI;
 
   chunks: {};
+  cache: {};
   chunk: Chunk;
 
   /*  Cube Rendering */
@@ -57,9 +74,10 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.frameTime = Date.now();
 
     // Generate initial landscape
-    this.chunks = {}
+    this.chunks = {};
+    this.cache = {};
 
-                  this.blankCubeRenderPass =
+    this.blankCubeRenderPass =
         new RenderPass(gl, blankCubeVSText, blankCubeFSText);
     this.cubeGeometry = new Cube();
     this.initBlankCube();
@@ -85,23 +103,35 @@ export class MinecraftAnimation extends CanvasAnimation {
     let xCoords: number[] = [];
     let zCoords: number[] = [];
 
-    for (let i = -1; i <= 1; i++) {
-      for (let j = -1; j <= 1; j++) {
+    for (let i = -Config.BORDER_CHUNKS; i <= Config.BORDER_CHUNKS; i++) {
+      for (let j = -Config.BORDER_CHUNKS; j <= Config.BORDER_CHUNKS; j++) {
         xCoords.push(centerX + Config.CHUNK_SIZE * i);
         zCoords.push(centerZ + Config.CHUNK_SIZE * j);
       }
     }
 
     let newChunks = {};
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < (1 + 2 * Config.BORDER_CHUNKS) ** 2; i++) {
       const key = this.chunkKey(xCoords[i], zCoords[i]);
       if (key in this.chunks) {
         newChunks[key] = this.chunks[key];
+      } else if (key in this.cache) {
+        newChunks[key] = this.cache[key];
       } else {
         newChunks[key] = new Chunk(xCoords[i], zCoords[i], Config.CHUNK_SIZE);
       }
-      if (i == 4) {
+      if (i == Math.floor(((1 + 2 * Config.BORDER_CHUNKS) ** 2) / 2)) {
         this.chunk = newChunks[key];
+      }
+    }
+
+    // Cache deleted chunks for hysteresis logic
+    if (Object.keys(this.cache).length > Config.CACHE_SIZE) {
+      this.cache = {}
+    }
+    for (let key in this.chunks) {
+      if (!(key in newChunks)) {
+        this.cache[key] = this.chunks[key]
       }
     }
     this.chunks = newChunks;
@@ -217,13 +247,13 @@ export class MinecraftAnimation extends CanvasAnimation {
       let safe: boolean = true;
       for (let i = 0; i < chunks.length; i++) {
         if (chunks[i].sideCollision(position)) {
-          // console.log("SIDE COLLISION");
           this.playerPosition.x = Math.round(this.playerPosition.x);
           this.playerPosition.z = Math.round(this.playerPosition.z);
           safe = false;
           break;
         }
       }
+
       if (safe) {
         this.playerPosition = position;
       }
@@ -236,7 +266,6 @@ export class MinecraftAnimation extends CanvasAnimation {
     velocity.scale((Date.now() - this.frameTime) / 1000.0)
     position.add(velocity);
     this.frameTime = Date.now();
-    // console.log(velocity, this.frameTime);
     let height = this.chunk.verticalCollision(position);
     if (height != Number.MIN_SAFE_INTEGER) {
       this.playerPosition.y = height + Config.PLAYER_HEIGHT;

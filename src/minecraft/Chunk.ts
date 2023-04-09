@@ -39,7 +39,6 @@ export class Chunk {
   }
 
   public sideCollision(cameraLocation: Vec3): boolean {
-    // console.log(cameraLocation.x + " " + cameraLocation.z);
     const topleftx = this.x - this.size / 2;
     const toplefty = this.y - this.size / 2;
     const base: number = cameraLocation.y - Config.PLAYER_HEIGHT;
@@ -52,7 +51,6 @@ export class Chunk {
         point.add(new Vec2([i == -1 ? 1 : 0, j == -1 ? 1 : 0]))
         let distance = Vec2.distance(
             point, new Vec2([cameraLocation.x, cameraLocation.z]));
-        // console.log(i + "," + j + " : " + distance)
         if (distance < Config.PLAYER_RADIUS) {
           const x = Math.round(cameraLocation.x - topleftx) + i;
           const y = Math.round(cameraLocation.z - toplefty) + j;
