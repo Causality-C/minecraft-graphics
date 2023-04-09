@@ -10,18 +10,18 @@ import {GUI} from './Gui.js';
 import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
 
 export class Config {
-    public static PLAYER_RADIUS: number = 0.4;
-    public static PLAYER_HEIGHT: number = 2.0;
-    public static CHUNK_SIZE: number = 64.0;
-    public static GRAVITY: number = -9.8;
-    public static JUMP_VELOCITY: number = 10.0;
+  public static PLAYER_RADIUS: number = 0.4;
+  public static PLAYER_HEIGHT: number = 2.0;
+  public static CHUNK_SIZE: number = 64.0;
+  public static GRAVITY: number = -9.8;
+  public static JUMP_VELOCITY: number = 10.0;
 }
 
 export class MinecraftAnimation extends CanvasAnimation {
   private gui: GUI;
 
-  chunks: {}
-  chunk: Chunk
+  chunks: {};
+  chunk: Chunk;
 
   /*  Cube Rendering */
   private cubeGeometry: Cube;
@@ -73,13 +73,13 @@ export class MinecraftAnimation extends CanvasAnimation {
   }
 
   private generateChunks() {
-    let centerX =
-        Math.floor(
-            (this.playerPosition.x + Config.CHUNK_SIZE / 2) / Config.CHUNK_SIZE) *
+    let centerX = Math.floor(
+                      (this.playerPosition.x + Config.CHUNK_SIZE / 2) /
+                      Config.CHUNK_SIZE) *
         Config.CHUNK_SIZE;
-    let centerZ =
-        Math.floor(
-            (this.playerPosition.z + Config.CHUNK_SIZE / 2) / Config.CHUNK_SIZE) *
+    let centerZ = Math.floor(
+                      (this.playerPosition.z + Config.CHUNK_SIZE / 2) /
+                      Config.CHUNK_SIZE) *
         Config.CHUNK_SIZE;
 
     let xCoords: number[] = [];
@@ -114,28 +114,36 @@ export class MinecraftAnimation extends CanvasAnimation {
     const xMod = cameraLocation.x % Config.CHUNK_SIZE - Config.CHUNK_SIZE / 2;
     const zMod = cameraLocation.z % Config.CHUNK_SIZE - Config.CHUNK_SIZE / 2;
     if (zMod <= 0.0 && zMod >= -1.0) {
-        candidates.push(this.chunks[this.chunkKey(center.x, center.z + Config.CHUNK_SIZE)]);
+      candidates.push(
+          this.chunks[this.chunkKey(center.x, center.z + Config.CHUNK_SIZE)]);
     }
     if (zMod >= 0.0 && zMod <= 1.0) {
-        candidates.push(this.chunks[this.chunkKey(center.x, center.z - Config.CHUNK_SIZE)]);
+      candidates.push(
+          this.chunks[this.chunkKey(center.x, center.z - Config.CHUNK_SIZE)]);
     }
     if (xMod <= 0.0 && xMod >= -1.0) {
-        candidates.push(this.chunks[this.chunkKey(center.x + Config.CHUNK_SIZE, center.z)]);
+      candidates.push(
+          this.chunks[this.chunkKey(center.x + Config.CHUNK_SIZE, center.z)]);
     }
     if (xMod >= 0.0 && xMod <= 1.0) {
-        candidates.push(this.chunks[this.chunkKey(center.x - Config.CHUNK_SIZE, center.z)]);
+      candidates.push(
+          this.chunks[this.chunkKey(center.x - Config.CHUNK_SIZE, center.z)]);
     }
     if (zMod <= 0.0 && zMod >= -1.0 && xMod <= 0.0 && xMod >= -1.0) {
-        candidates.push(this.chunks[this.chunkKey(center.x + Config.CHUNK_SIZE, center.z + Config.CHUNK_SIZE)]);
+      candidates.push(this.chunks[this.chunkKey(
+          center.x + Config.CHUNK_SIZE, center.z + Config.CHUNK_SIZE)]);
     }
     if (zMod <= 0.0 && zMod >= -1.0 && xMod >= 0.0 && xMod <= 1.0) {
-        candidates.push(this.chunks[this.chunkKey(center.x - Config.CHUNK_SIZE, center.z + Config.CHUNK_SIZE)]);
+      candidates.push(this.chunks[this.chunkKey(
+          center.x - Config.CHUNK_SIZE, center.z + Config.CHUNK_SIZE)]);
     }
     if (zMod >= 0.0 && zMod <= 1.0 && xMod <= 0.0 && xMod >= -1.0) {
-        candidates.push(this.chunks[this.chunkKey(center.x + Config.CHUNK_SIZE, center.z - Config.CHUNK_SIZE)]);
+      candidates.push(this.chunks[this.chunkKey(
+          center.x + Config.CHUNK_SIZE, center.z - Config.CHUNK_SIZE)]);
     }
     if (zMod >= 0.0 && zMod <= 1.0 && xMod >= 0.0 && xMod <= 1.0) {
-        candidates.push(this.chunks[this.chunkKey(center.x - Config.CHUNK_SIZE, center.z - Config.CHUNK_SIZE)]);
+      candidates.push(this.chunks[this.chunkKey(
+          center.x - Config.CHUNK_SIZE, center.z - Config.CHUNK_SIZE)]);
     }
     return candidates;
   }
@@ -205,39 +213,39 @@ export class MinecraftAnimation extends CanvasAnimation {
     let position: Vec3 = new Vec3(this.playerPosition.xyz);
     position.add(this.gui.walkDir());
     if (!position.equals(this.playerPosition)) {
-        let chunks: Chunk[] = this.collisionChunks(this.playerPosition);
-        let safe: boolean = true;
-        for (let i = 0; i < chunks.length; i++) {
-            if (chunks[i].sideCollision(position)) {
-                console.log("SIDE COLLISION");
-                this.playerPosition.x = Math.round(this.playerPosition.x);
-                this.playerPosition.z = Math.round(this.playerPosition.z);
-                safe = false;
-                break;
-            }
+      let chunks: Chunk[] = this.collisionChunks(this.playerPosition);
+      let safe: boolean = true;
+      for (let i = 0; i < chunks.length; i++) {
+        if (chunks[i].sideCollision(position)) {
+          // console.log("SIDE COLLISION");
+          this.playerPosition.x = Math.round(this.playerPosition.x);
+          this.playerPosition.z = Math.round(this.playerPosition.z);
+          safe = false;
+          break;
         }
-        if (safe) {
-            this.playerPosition = position;
-        }
+      }
+      if (safe) {
+        this.playerPosition = position;
+      }
     }
 
     position = new Vec3(this.playerPosition.xyz);
-    let velocity: Vec3 = new Vec3([0.0, Config.GRAVITY * (Date.now() - this.gravityTime) / 1000.0, 0.0]);
+    let velocity: Vec3 = new Vec3(
+        [0.0, Config.GRAVITY * (Date.now() - this.gravityTime) / 1000.0, 0.0]);
     velocity.add(this.verticalVelocity);
     velocity.scale((Date.now() - this.frameTime) / 1000.0)
     position.add(velocity);
     this.frameTime = Date.now();
-    console.log(velocity, this.frameTime);
+    // console.log(velocity, this.frameTime);
     let height = this.chunk.verticalCollision(position);
     if (height != Number.MIN_SAFE_INTEGER) {
-        this.playerPosition.y = height + Config.PLAYER_HEIGHT;
-        this.onGround = true;
-        this.verticalVelocity = new Vec3();
-        this.gravityTime = Date.now();
-    }
-    else {
-        this.onGround = false;
-        this.playerPosition = position;
+      this.playerPosition.y = height + Config.PLAYER_HEIGHT;
+      this.onGround = true;
+      this.verticalVelocity = new Vec3();
+      this.gravityTime = Date.now();
+    } else {
+      this.onGround = false;
+      this.playerPosition = position;
     }
     this.gui.getCamera().setPos(this.playerPosition);
 
@@ -284,7 +292,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     // TODO: If the player is not already in the lair, launch them upwards at 10
     // units/sec.
     if (this.onGround) {
-        this.verticalVelocity = new Vec3([0.0, Config.JUMP_VELOCITY, 0.0]);
+      this.verticalVelocity = new Vec3([0.0, Config.JUMP_VELOCITY, 0.0]);
     }
   }
 }

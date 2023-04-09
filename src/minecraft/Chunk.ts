@@ -1,6 +1,7 @@
-import {Config} from './App.js';
 import Rand from '../lib/rand-seed/Rand.js';
 import {Mat3, Mat4, Vec2, Vec3, Vec4} from '../lib/TSM.js';
+
+import {Config} from './App.js';
 
 export class Chunk {
   private cubes: number;  // Number of cubes that should be *drawn* each frame
@@ -10,14 +11,15 @@ export class Chunk {
   private x: number;  // Center of the chunk
   private y: number;
   private size: number;  // Number of cubes along each side of the chunk
-  private maxHeight: number = 40;
   private heightMap: Float32Array;
+  private maxHeight: number = 100;
 
   constructor(centerX: number, centerY: number, size: number) {
     this.x = centerX;
     this.y = centerY;
     this.size = size;
     this.cubes = size * size;
+    this.heightMap = new Float32Array(this.size * this.size);
     this.generateCubes();
   }
 
@@ -28,10 +30,10 @@ export class Chunk {
     const x = Math.round(cameraLocation.x - topleftx);
     const y = Math.round(cameraLocation.z - toplefty);
     if (x >= 0 && y >= 0 && x < this.size && y < this.size) {
-        const height = Math.floor(this.heightMap[x * this.size + y]);
-        if (base < height) {
-            return height;
-        }
+      const height = Math.floor(this.heightMap[x * this.size + y]);
+      if (base < height) {
+        return height;
+      }
     }
     return Number.MIN_SAFE_INTEGER;
   }
@@ -42,58 +44,29 @@ export class Chunk {
     const toplefty = this.y - this.size / 2;
     const base: number = cameraLocation.y - Config.PLAYER_HEIGHT;
     for (let i = -1; i <= 1; i++) {
-        for (let j = -1; j <= 1; j++) {
-            let point: Vec2 = new Vec2([i == 0 ? cameraLocation.x : Math.round(cameraLocation.x) - 0.5 + i,
-                                        j == 0 ? cameraLocation.z : Math.round(cameraLocation.z) - 0.5 + j]);
-            point.add(new Vec2([i == -1 ? 1 : 0, j == -1 ? 1 : 0]))
-            let distance = Vec2.distance(point, new Vec2([cameraLocation.x, cameraLocation.z]));
-            // console.log(i + "," + j + " : " + distance)
-            if (distance < Config.PLAYER_RADIUS) {
-                const x = Math.round(cameraLocation.x - topleftx) + i;
-                const y = Math.round(cameraLocation.z - toplefty) + j;
-                if (x >= 0 && y >= 0 && x < this.size && y < this.size) {
-                    const height = Math.floor(this.heightMap[x * this.size + y]);
-                    if (base < height) {
-                        return true;
-                    }
-                }
+      for (let j = -1; j <= 1; j++) {
+        let point: Vec2 = new Vec2([
+          i == 0 ? cameraLocation.x : Math.round(cameraLocation.x) - 0.5 + i,
+          j == 0 ? cameraLocation.z : Math.round(cameraLocation.z) - 0.5 + j
+        ]);
+        point.add(new Vec2([i == -1 ? 1 : 0, j == -1 ? 1 : 0]))
+        let distance = Vec2.distance(
+            point, new Vec2([cameraLocation.x, cameraLocation.z]));
+        // console.log(i + "," + j + " : " + distance)
+        if (distance < Config.PLAYER_RADIUS) {
+          const x = Math.round(cameraLocation.x - topleftx) + i;
+          const y = Math.round(cameraLocation.z - toplefty) + j;
+          if (x >= 0 && y >= 0 && x < this.size && y < this.size) {
+            const height = Math.floor(this.heightMap[x * this.size + y]);
+            if (base < height) {
+              return true;
             }
+          }
         }
+      }
     }
     return false;
   }
-
-  // Returns the index of the old cube
-  private safeIndex(i: number, j: number, oldDim: number) {
-    let newi = i;
-    let newj = j;
-
-    i = Math.floor(i / 2);
-    j = Math.floor(j / 2);
-
-    // TODO: might be ass logic so we could refactor
-    if (i / (oldDim - 1) > newi / ((oldDim * 2) - 1)) {
-      i--;
-    }
-    if (i < 0) {
-      i = 0;
-    } else if (i >= oldDim) {
-      i = oldDim - 1;
-    }
-
-    // TODO: might be ass logic so we could refactor
-    if (j / (oldDim - 1) > newj / ((oldDim * 2) - 1)) {
-      j--;
-    }
-    if (j < 0) {
-      j = 0;
-    } else if (j >= oldDim) {
-      j = oldDim - 1;
-    }
-
-    return i * oldDim + j;
-  }
-
 
   private apply2x2KernelToSquareMatrix(
       kernel: Float32Array, matrix: Float32Array): Float32Array {
@@ -296,8 +269,8 @@ export class Chunk {
 
     // Create multiple layers of value noise
     let octaves = 6;
-    this.heightMap = new Float32Array(this.size * this.size);
-    for (let i = 0; i < octaves; i++) {
+    let heightMap: Float32Array = new Float32Array(this.size * this.size);
+    for (let i = 3; i < octaves; i++) {
       // Scale and blend them together to avoid overflow (heights should be
       // 0-100)
       let blockWidth: number = Math.floor((this.size) / (2 ** i));
