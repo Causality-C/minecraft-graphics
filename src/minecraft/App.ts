@@ -143,7 +143,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     const center: Vec3 = this.chunk.getChunkCenter();
     const xMod = Math.abs(Math.abs(cameraLocation.x) % Config.CHUNK_SIZE - Config.CHUNK_SIZE / 2);
     const zMod = Math.abs(Math.abs(cameraLocation.z) % Config.CHUNK_SIZE - Config.CHUNK_SIZE / 2);
-    console.log(cameraLocation.x + " " + cameraLocation.z);
+    // console.log(cameraLocation.x + " " + cameraLocation.z);
     if (xMod <= 2.0) {
         candidates.push(this.chunks[this.chunkKey(center.x + Config.CHUNK_SIZE, center.z)]);
         candidates.push(this.chunks[this.chunkKey(center.x - Config.CHUNK_SIZE, center.z)]);
