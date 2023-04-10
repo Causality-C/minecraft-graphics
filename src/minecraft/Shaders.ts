@@ -1,15 +1,15 @@
 export const blankCubeVSText = `
     precision mediump float;
 
-    uniform vec4 uLightPos;    
+    uniform vec4 uLightPos;
     uniform mat4 uView;
     uniform mat4 uProj;
-    
+
     attribute vec4 aNorm;
     attribute vec4 aVertPos;
     attribute vec4 aOffset;
     attribute vec2 aUV;
-    
+
     varying vec4 normal;
     varying vec4 wsPos;
     varying vec2 uv;
@@ -28,11 +28,11 @@ export const blankCubeFSText = `
 
     uniform vec4 uLightPos;
     uniform float uTime;
-    
+
     varying vec4 normal;
     varying vec4 wsPos;
     varying vec2 uv;
-    
+
     float smoothmix(float a0, float a1, float w) {
         return (a1 - a0) * (3.0 - w * 2.0) * w * w + a0;
     }
@@ -74,7 +74,7 @@ export const blankCubeFSText = `
         if(time == 1.0) {
             vecuv00 = time_unit_vec(uv00, seed);
             vecuv10 = time_unit_vec(uv10, seed);
-            vecuv01 = time_unit_vec(uv01, seed);    
+            vecuv01 = time_unit_vec(uv01, seed);
             vecuv11 = time_unit_vec(uv11, seed);
         }
 
@@ -155,7 +155,7 @@ export const blankCubeFSText = `
         // Can change based on texture in the future
         float seed = 10.0;
         vec3 kd = vec3(1.0, 1.0, 1.0);
-        vec3 ka = vec3(0.1, 0.1, 0.1);
+        vec3 ka = vec3(0.3, 0.3, 0.3);
 
         /* Compute light fall off */
         vec4 lightDirection = uLightPos - wsPos;
@@ -178,6 +178,6 @@ export const blankCubeFSText = `
             gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* stone, 1.0);
         }
 
-	
+
     }
 `;

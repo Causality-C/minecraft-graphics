@@ -10,13 +10,10 @@ import {GUI} from './Gui.js';
 import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
 
 export class Config {
-    // Radius of player cylinder used for collision checks
     public static PLAYER_RADIUS: number = 0.4;
 
-    // Player height
     public static PLAYER_HEIGHT: number = 2.0;
 
-    // Size of one side of a chunk
     public static CHUNK_SIZE: number = 64.0;
 
     // Number of chunks to render outside of the player's chunk
@@ -26,11 +23,13 @@ export class Config {
     // Number of chunks to store in cache before resetting; for hysteresis
     public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1) ** 2
 
-    // Acceleration due to gravity
     public static GRAVITY: number = -9.8;
 
-    // Upward velocity when the user presses SPACE
     public static JUMP_VELOCITY: number = 10.0;
+
+    public static NIGHT_COLOR: Vec4 = new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
+
+    public static DAY_COLOR: Vec4 = new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);
 }
 
 export class MinecraftAnimation extends CanvasAnimation {
@@ -208,14 +207,15 @@ export class MinecraftAnimation extends CanvasAnimation {
               loc, false, new Float32Array(this.gui.viewMatrix().all()));
         });
 
+    this.blankCubeRenderPass.addUniform(
+        'uTime', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+            gl.uniform1f(
+                loc, (Date.now() / 500.0) % (2 * Math.PI));
+        });
+
     this.blankCubeRenderPass.setDrawData(
         this.ctx.TRIANGLES, this.cubeGeometry.indicesFlat().length,
         this.ctx.UNSIGNED_INT, 0);
-
-    this.blankCubeRenderPass.addUniform(
-        'uTime', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-          gl.uniform1f(loc, (Date.now() / 500.0) % (2 * Math.PI));
-        });
     this.blankCubeRenderPass.setup();
   }
 
@@ -269,6 +269,17 @@ export class MinecraftAnimation extends CanvasAnimation {
         this.playerPosition = position;
     }
     this.gui.getCamera().setPos(this.playerPosition);
+
+    let ellipseCenter: Vec4 = new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);
+    let sinT: number = Math.sin((Date.now() / 10000.0) % (2 * Math.PI));
+    let cosT: number = Math.cos((Date.now() / 10000.0) % (2 * Math.PI));
+    let curveVector: Vec4 = new Vec4([1000.0 * sinT, 1000.0 * cosT, 1000.0 * sinT, 1.0]);
+    this.lightPosition = Vec4.sum(ellipseCenter, curveVector);
+
+    let heightPercent: number = (this.lightPosition.y + 1000.0) / 2000.0;
+    this.backgroundColor = Vec4.sum(Config.NIGHT_COLOR,
+        Vec4.difference(Config.DAY_COLOR, Config.NIGHT_COLOR).scale(heightPercent));
+    this.backgroundColor.w = 1.0;
 
     // Drawing
     const gl: WebGLRenderingContext = this.ctx;
