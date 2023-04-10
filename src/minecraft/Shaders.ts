@@ -122,13 +122,16 @@ export const blankCubeFSText = `
         // Colors for solid edges
         vec3 colsRock = vec3(92.0 / 256.0, 14.0 / 256.0, 14.0 / 256.0);
         vec3 colsLava = vec3(186.0, 72.0, 10.0) / 256.0;
+        vec3 colsBright = vec3(234.0,169.0,46.0) / 256.0;
 
         // Colors for lava
         float turb = turbulence(uv * 3.0, seed, 1.0);
 
         // Linear interpolation between colors
         if (turb < 0.6) {
-            return colsLava;
+            // Should be between 0.0 and 1.0
+            float weight = cos(uTime) + 1.0;
+            return colsLava + (colsBright - colsLava) * weight * 0.5;
         }
         return colsRock * turb;
     }
