@@ -27,10 +27,10 @@ export class Config {
 
   public static JUMP_VELOCITY: number = 10.0;
 
-  public static DAY_TIME_SECONDS: number = 60.0
+  public static DAY_TIME_SECONDS: number = 60.0;
 
-      public static NIGHT_COLOR: Vec4 =
-          new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
+  public static NIGHT_COLOR: Vec4 =
+      new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
 
   public static DAY_COLOR: Vec4 =
       new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);

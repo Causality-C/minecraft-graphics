@@ -1,0 +1,7 @@
+Shit to figure out
+- Center the player and draw out 3x3 chunks
+- Terrain generation
+    - 
+- Perlin noise and smoothening
+- Pseudogenerate the chunks and keep consistency
+- Look into shadertoy for prototyping
