@@ -25,13 +25,15 @@ export class Config {
 
       public static GRAVITY: number = -9.8;
 
-  public static JUMP_VELOCITY: number = 10.0;
+  public static JUMP_VELOCITY: number = 50.0;
 
   public static NIGHT_COLOR: Vec4 =
       new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
 
   public static DAY_COLOR: Vec4 =
       new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);
+
+  public static PERLIN_3D: boolean = false;
 }
 
 export class MinecraftAnimation extends CanvasAnimation {
@@ -266,7 +268,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.frameTime = Date.now();
     let safe: boolean = true;
     for (let i = 0; i < chunks.length; i++) {
-      let height = chunks[i].verticalCollision(position);
+      let height = chunks[i].verticalCollision(position, velocity.y > 0);
       if (height != Number.MIN_SAFE_INTEGER) {
         this.playerPosition.y = height + Config.PLAYER_HEIGHT;
         this.onGround = true;

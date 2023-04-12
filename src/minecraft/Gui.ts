@@ -3,7 +3,7 @@ import {Camera} from '../lib/webglutils/Camera.js';
 import {CanvasAnimation} from '../lib/webglutils/CanvasAnimation.js';
 import {RenderPass} from '../lib/webglutils/RenderPass.js';
 
-import {MinecraftAnimation} from './App.js';
+import {Config, MinecraftAnimation} from './App.js';
 
 /**
  * Might be useful for designing any animation GUI
@@ -162,6 +162,10 @@ export class GUI implements IGUI {
       }
       case 'KeyR': {
         this.animation.reset();
+        break;
+      }
+      case 'KeyP': {
+        Config.PERLIN_3D = !Config.PERLIN_3D;
         break;
       }
       case 'Space': {

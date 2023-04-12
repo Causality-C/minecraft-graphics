@@ -26,17 +26,29 @@ export class Chunk {
     this.generateCubes();
   }
 
-  public verticalCollision(cameraLocation: Vec3): number {
+  public verticalCollision(cameraLocation: Vec3, upwards: boolean): number {
     const topleftx = this.x - this.size / 2;
     const toplefty = this.y - this.size / 2;
-    const base: number = cameraLocation.y - Config.PLAYER_HEIGHT;
+    const base: number = Math.round(cameraLocation.y - Config.PLAYER_HEIGHT);
+    const top: number = Math.round(cameraLocation.y);
     const x = Math.round(cameraLocation.x - topleftx);
     const y = Math.round(cameraLocation.z - toplefty);
     if (x >= 0 && y >= 0 && x < this.size && y < this.size) {
-      const height = Math.floor(this.heightMap[x * this.size + y]);
-      if (base < height) {
-        return height;
-      }
+        let idx = x * this.size + y;
+        if (upwards) {
+            for (let i = 0; i <= Config.PLAYER_HEIGHT; i++) {
+                if (base + i + 1 < this.densityMap[idx].length && this.densityMap[idx][base + i + 1] >= 0) {
+                    return base + i - Config.PLAYER_HEIGHT - 0.5;
+                }
+            }
+        }
+        else {
+            for (let i = 0; i <= Config.PLAYER_HEIGHT; i++) {
+                if (top - i < this.densityMap[idx].length && this.densityMap[idx][top - i] >= 0) {
+                    return top - i + 0.5;
+                }
+            }
+        }
     }
     return Number.MIN_SAFE_INTEGER;
   }
@@ -45,6 +57,7 @@ export class Chunk {
     const topleftx = this.x - this.size / 2;
     const toplefty = this.y - this.size / 2;
     const base: number = cameraLocation.y - Config.PLAYER_HEIGHT;
+    const top: number = Math.round(cameraLocation.y);
     for (let i = -1; i <= 1; i++) {
       for (let j = -1; j <= 1; j++) {
         let point: Vec2 = new Vec2([
@@ -58,10 +71,12 @@ export class Chunk {
           const x = Math.round(cameraLocation.x - topleftx) + i;
           const y = Math.round(cameraLocation.z - toplefty) + j;
           if (x >= 0 && y >= 0 && x < this.size && y < this.size) {
-            const height = Math.floor(this.heightMap[x * this.size + y]);
-            if (base < height) {
-              return true;
-            }
+            let idx = x * this.size + y;
+                for (let k = 0; k <= Config.PLAYER_HEIGHT; k++) {
+                    if (top - k < this.densityMap[idx].length && this.densityMap[idx][top - k] >= 0) {
+                        return true;
+                    }
+                }
           }
         }
       }
@@ -259,7 +274,7 @@ export class Chunk {
   private shouldDrawBasedOnDensity(i: number, j: number, k: number): boolean {
     // TODO: Should be within bounds
     let idx = this.size * i + j;
-    if (this.densityMap[idx][k] < 0) {
+    if (k > this.densityMap[idx].length || this.densityMap[idx][k] < 0) {
       // Return false if air
       return false;
     }
@@ -403,7 +418,7 @@ export class Chunk {
         for (let k = 0; k < height; k++) {
           // Single octave 3D perlin noise
           let curPos = new Vec3([topleftx + i, toplefty + j, k]);
-          densityMap[idx][k] = this.perlinDensity(32, curPos);
+          densityMap[idx][k] = Config.PERLIN_3D ? this.perlinDensity(32, curPos) : 1;
           // Add a bias towrds lower heights being less likely to be air
           densityMap[idx][k] += 0.8 * ((40 - k) / 100);
           lastHeight = (densityMap[idx][k] > 0.0) ? k : lastHeight;
