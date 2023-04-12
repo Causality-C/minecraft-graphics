@@ -166,12 +166,12 @@ export const blankCubeFSText = `
 	    dot_nl = clamp(dot_nl, 0.0, 1.0);
 
         // Lava/Magma only generates on low locations
-        if(wsPos.y < 25.5) {
+        if(wsPos.y < 20.5) {
             vec3 magma = perlinMagma(uv, seed);
             gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* magma, 1.0);
         }
         // Snow only generates on high locations
-        else if(wsPos.y > 65.0){
+        else if(wsPos.y > 55.0){
             vec3 snow = perlinSnow(uv, seed);
             gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* snow, 1.0);
         }
