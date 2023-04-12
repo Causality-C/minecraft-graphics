@@ -14,6 +14,7 @@ export class Chunk {
   private heightMap: Float32Array;
   private densityMap: Object;
   private maxHeight: number = 100;
+  private unitVecs: Object;
 
   constructor(centerX: number, centerY: number, size: number) {
     this.x = centerX;
@@ -21,6 +22,7 @@ export class Chunk {
     this.size = size;
     this.cubes = size * size;
     this.heightMap = new Float32Array(this.size * this.size);
+    this.unitVecs = {};
     this.generateCubes();
   }
 
@@ -275,12 +277,20 @@ export class Chunk {
 
   // Generates a psuedorandom 3D vector
   private unit_vec3d(x: number, y: number, z: number): Vec3 {
-    let rng: Rand = new Rand(`${x}-${y}-${z}`);
+    // Used memoixed vectors if they exist
+    let seed: string = `${x}-${y}-${z}`;
+    if (seed in this.unitVecs) {
+      return this.unitVecs[seed];
+    }
+    let rng: Rand = new Rand(seed);
     let a = 2.0 * 3.1415926 * rng.next();
     let b = 2.0 * 3.1415926 * rng.next();
     let c = 2.0 * 3.1415926 * rng.next();
     let vec: Vec3 = new Vec3([Math.cos(a), Math.sin(b), Math.cos(c)]);
-    return vec.normalize();
+    // Memoize the vector
+    vec.normalize();
+    this.unitVecs[seed] = vec;
+    return vec;
   }
 
   // Bi-Cubic interpolation
@@ -388,6 +398,7 @@ export class Chunk {
       for (let j = 0; j < this.size; j++) {
         const idx = this.size * i + j;
         const height = Math.floor(this.heightMap[idx]);
+        let lastHeight = 0;
         densityMap[idx] = new Float32Array(height);
         for (let k = 0; k < height; k++) {
           // Single octave 3D perlin noise
@@ -395,7 +406,10 @@ export class Chunk {
           densityMap[idx][k] = this.perlinDensity(32, curPos);
           // Add a bias towrds lower heights being less likely to be air
           densityMap[idx][k] += 0.8 * ((40 - k) / 100);
+          lastHeight = (densityMap[idx][k] > 0.0) ? k : lastHeight;
         }
+        // Update height if noise removed some blocks
+        this.heightMap[idx] = lastHeight + 1;
       }
     }
     // Use density map to check if we should render a cube
