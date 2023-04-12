@@ -21,17 +21,19 @@ export class Config {
   public static BORDER_CHUNKS: number = 1.0;
 
   // Number of chunks to store in cache before resetting; for hysteresis
-  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1)** 2
+  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1) ** 2
 
-      public static GRAVITY: number = -9.8;
+  public static GRAVITY: number = -9.8;
 
   public static JUMP_VELOCITY: number = 10.0;
 
+  public static DAY_TIME_SECONDS: number = 60.0
+
   public static NIGHT_COLOR: Vec4 =
-      new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
+    new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
 
   public static DAY_COLOR: Vec4 =
-      new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);
+    new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);
 }
 
 export class MinecraftAnimation extends CanvasAnimation {
@@ -218,7 +220,6 @@ export class MinecraftAnimation extends CanvasAnimation {
           gl.uniformMatrix4fv(
               loc, false, new Float32Array(this.gui.viewMatrix().all()));
         });
-
     this.blankCubeRenderPass.addUniform(
         'uTime', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniform1f(loc, (Date.now() / 500.0) % (2 * Math.PI));
@@ -282,19 +283,16 @@ export class MinecraftAnimation extends CanvasAnimation {
     }
     this.gui.getCamera().setPos(this.playerPosition);
 
-    let ellipseCenter: Vec4 =
-        new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);
-    let sinT: number = Math.sin((Date.now() / 10000.0) % (2 * Math.PI));
-    let cosT: number = Math.cos((Date.now() / 10000.0) % (2 * Math.PI));
-    let curveVector: Vec4 =
-        new Vec4([1000.0 * sinT, 1000.0 * cosT, 1000.0 * sinT, 1.0]);
+    let ellipseCenter: Vec4 = new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);
+    let cycleTime: number = (Date.now() / ((Config.DAY_TIME_SECONDS / 60.0) * 10000.0)) % (2 * Math.PI);
+    let sinT: number = Math.sin(cycleTime);
+    let cosT: number = Math.cos(cycleTime);
+    let curveVector: Vec4 = new Vec4([1000.0 * sinT, 1000.0 * cosT, 1000.0 * sinT, 1.0]);
     this.lightPosition = Vec4.sum(ellipseCenter, curveVector);
 
-    let heightPercent: number = (this.lightPosition.y + 1000.0) / 2000.0;
-    this.backgroundColor = Vec4.sum(
-        Config.NIGHT_COLOR,
-        Vec4.difference(Config.DAY_COLOR, Config.NIGHT_COLOR)
-            .scale(heightPercent));
+    let heightPercent: number = Math.max((this.lightPosition.y + 500.0) / 1500.0, 0.0);
+    this.backgroundColor = Vec4.sum(Config.NIGHT_COLOR,
+        Vec4.difference(Config.DAY_COLOR, Config.NIGHT_COLOR).scale(heightPercent));
     this.backgroundColor.w = 1.0;
 
     // Drawing
@@ -316,20 +314,11 @@ export class MinecraftAnimation extends CanvasAnimation {
     const gl: WebGLRenderingContext = this.ctx;
     gl.viewport(x, y, width, height);
 
-    // TODO: Render multiple chunks around the player, using Perlin noise
-    // shaders
-    // let chunk_coord: Vec3 = this.chunk.getChunkCenter();
-    // let player_cord: Vec3 = this.playerPosition;
-
-    // TODO: Render instances of cubes that are seen by the player
     for (let chunk in this.chunks) {
       this.blankCubeRenderPass.updateAttributeBuffer(
           'aOffset', this.chunks[chunk].cubePositions());
       this.blankCubeRenderPass.drawInstanced(this.chunks[chunk].numCubes());
     }
-    // this.blankCubeRenderPass.updateAttributeBuffer(
-    //     'aOffset', this.chunk.cubePositions());
-    // this.blankCubeRenderPass.drawInstanced(this.chunk.numCubes());
   }
 
   public getGUI(): GUI {

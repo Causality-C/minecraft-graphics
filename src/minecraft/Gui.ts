@@ -3,7 +3,7 @@ import {Camera} from '../lib/webglutils/Camera.js';
 import {CanvasAnimation} from '../lib/webglutils/CanvasAnimation.js';
 import {RenderPass} from '../lib/webglutils/RenderPass.js';
 
-import {MinecraftAnimation} from './App.js';
+import {MinecraftAnimation, Config} from './App.js';
 
 /**
  * Might be useful for designing any animation GUI
@@ -166,6 +166,16 @@ export class GUI implements IGUI {
       }
       case 'Space': {
         this.animation.jump();
+        break;
+      }
+      case 'ArrowLeft': {
+        Config.DAY_TIME_SECONDS = Math.max(10.0, Config.DAY_TIME_SECONDS - 10.0);
+        console.log(`Current Day/Night Cycle Time (s): ${Config.DAY_TIME_SECONDS}`);
+        break;
+      }
+      case 'ArrowRight': {
+        Config.DAY_TIME_SECONDS += 10.0;
+        console.log(`Current Day/Night Cycle Time (s): ${Config.DAY_TIME_SECONDS}`);
         break;
       }
       default: {
