@@ -42,6 +42,8 @@ export class GUI implements IGUI {
   private Wdown: boolean;
   private Sdown: boolean;
   private Ddown: boolean;
+  private SpaceDown: boolean;
+  private ShiftLeftDown: boolean;
 
   /**
    *
@@ -135,6 +137,8 @@ export class GUI implements IGUI {
     if (this.Ddown) answer.add(this.camera.right());
     answer.y = 0;
     answer.normalize();
+    if (Config.CREATIVE_MODE && this.SpaceDown) answer.add(new Vec3([0.0, 1.0, 0.0]));
+    if (Config.CREATIVE_MODE && this.ShiftLeftDown) answer.add(new Vec3([0.0, -1.0, 0.0]));
     return answer;
   }
 
@@ -165,7 +169,14 @@ export class GUI implements IGUI {
         break;
       }
       case 'Space': {
-        this.animation.jump();
+        this.SpaceDown = true;
+        if (!Config.CREATIVE_MODE) {
+            this.animation.jump();
+        }
+        break;
+      }
+      case 'ShiftLeft': {
+        this.ShiftLeftDown = true;
         break;
       }
       case 'ArrowLeft': {
@@ -176,6 +187,11 @@ export class GUI implements IGUI {
       case 'ArrowRight': {
         Config.DAY_TIME_SECONDS += 10.0;
         console.log(`Current Day/Night Cycle Time (s): ${Config.DAY_TIME_SECONDS}`);
+        break;
+      }
+      case 'KeyC': {
+        Config.CREATIVE_MODE = Config.CREATIVE_MODE ? false : true;
+        console.log(`Creative Mode Enabled: ${Config.CREATIVE_MODE}`);
         break;
       }
       default: {
@@ -201,6 +217,14 @@ export class GUI implements IGUI {
       }
       case 'KeyD': {
         this.Ddown = false;
+        break;
+      }
+      case 'Space': {
+        this.SpaceDown = false;
+        break;
+      }
+      case 'ShiftLeft': {
+        this.ShiftLeftDown = false;
         break;
       }
     }

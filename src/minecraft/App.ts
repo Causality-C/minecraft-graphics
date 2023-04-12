@@ -34,6 +34,8 @@ export class Config {
 
   public static DAY_COLOR: Vec4 =
     new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);
+
+  public static CREATIVE_MODE: boolean = false;
 }
 
 export class MinecraftAnimation extends CanvasAnimation {
@@ -236,52 +238,59 @@ export class MinecraftAnimation extends CanvasAnimation {
    *
    */
   public draw(): void {
-    // TODO: Logic for a rudimentary walking simulator. Check for collisions and
-    // reject attempts to walk into a cube. Handle gravity, jumping, and loading
-    // of new chunks when necessary.
-    this.generateChunks();
-    let position: Vec3 = new Vec3(this.playerPosition.xyz);
-    let chunks: Chunk[] = this.collisionChunks(this.playerPosition);
-    position.add(this.gui.walkDir());
-    if (!position.equals(this.playerPosition)) {
+      // TODO: Logic for a rudimentary walking simulator. Check for collisions and
+      // reject attempts to walk into a cube. Handle gravity, jumping, and loading
+      // of new chunks when necessary.
+      this.generateChunks();
+      if (!Config.CREATIVE_MODE) {
+      let position: Vec3 = new Vec3(this.playerPosition.xyz);
+      let chunks: Chunk[] = this.collisionChunks(this.playerPosition);
+      position.add(this.gui.walkDir());
+      if (!position.equals(this.playerPosition)) {
+        let safe: boolean = true;
+        for (let i = 0; i < chunks.length; i++) {
+          if (chunks[i].sideCollision(position)) {
+            this.playerPosition.x = Math.round(this.playerPosition.x);
+            this.playerPosition.z = Math.round(this.playerPosition.z);
+            safe = false;
+            break;
+          }
+        }
+        if (safe) {
+          this.playerPosition = position;
+        }
+      }
+
+      position = new Vec3(this.playerPosition.xyz);
+      let velocity: Vec3 = new Vec3(
+          [0.0, Config.GRAVITY * (Date.now() - this.gravityTime) / 1000.0, 0.0]);
+      velocity.add(this.verticalVelocity);
+      velocity.scale((Date.now() - this.frameTime) / 1000.0)
+      position.add(velocity);
+      this.frameTime = Date.now();
       let safe: boolean = true;
       for (let i = 0; i < chunks.length; i++) {
-        if (chunks[i].sideCollision(position)) {
-          this.playerPosition.x = Math.round(this.playerPosition.x);
-          this.playerPosition.z = Math.round(this.playerPosition.z);
+        let height = chunks[i].verticalCollision(position);
+        if (height != Number.MIN_SAFE_INTEGER) {
+          this.playerPosition.y = height + Config.PLAYER_HEIGHT;
+          this.onGround = true;
+          this.verticalVelocity = new Vec3();
+          this.gravityTime = Date.now();
           safe = false;
           break;
         }
       }
       if (safe) {
+        this.onGround = false;
         this.playerPosition = position;
       }
+      this.gui.getCamera().setPos(this.playerPosition);
     }
-
-    position = new Vec3(this.playerPosition.xyz);
-    let velocity: Vec3 = new Vec3(
-        [0.0, Config.GRAVITY * (Date.now() - this.gravityTime) / 1000.0, 0.0]);
-    velocity.add(this.verticalVelocity);
-    velocity.scale((Date.now() - this.frameTime) / 1000.0)
-    position.add(velocity);
-    this.frameTime = Date.now();
-    let safe: boolean = true;
-    for (let i = 0; i < chunks.length; i++) {
-      let height = chunks[i].verticalCollision(position);
-      if (height != Number.MIN_SAFE_INTEGER) {
-        this.playerPosition.y = height + Config.PLAYER_HEIGHT;
-        this.onGround = true;
-        this.verticalVelocity = new Vec3();
-        this.gravityTime = Date.now();
-        safe = false;
-        break;
-      }
+    else {
+      this.playerPosition.add(this.gui.walkDir());
+      this.gui.getCamera().setPos(this.playerPosition);
+      this.gravityTime = Date.now();
     }
-    if (safe) {
-      this.onGround = false;
-      this.playerPosition = position;
-    }
-    this.gui.getCamera().setPos(this.playerPosition);
 
     let ellipseCenter: Vec4 = new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);
     let cycleTime: number = (Date.now() / ((Config.DAY_TIME_SECONDS / 60.0) * 10000.0)) % (2 * Math.PI);
