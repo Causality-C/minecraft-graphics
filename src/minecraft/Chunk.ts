@@ -12,6 +12,7 @@ export class Chunk {
   private y: number;
   private size: number;  // Number of cubes along each side of the chunk
   private heightMap: Float32Array;
+  private densityMap: Object;
   private maxHeight: number = 100;
 
   constructor(centerX: number, centerY: number, size: number) {
@@ -239,6 +240,7 @@ export class Chunk {
 
     return retArray;
   }
+  // Lookup the number of cubes to draw at a given x y coordinate
   private numCubesDrawn(arr: Float32Array, i: number, j: number): number {
     const idx = this.size * i + j;
     // up
@@ -252,6 +254,105 @@ export class Chunk {
 
     return Math.floor(arr[idx] - minNeigh + 1);
   }
+  private shouldDrawBasedOnDensity(i: number, j: number, k: number): boolean {
+    // TODO: Should be within bounds
+    let idx = this.size * i + j;
+    if (this.densityMap[idx][k] < 0) {
+      // Return false if air
+      return false;
+    }
+    // Assume not air
+    let idxUp = this.size * (i - 1) + j;
+    let idxDown = this.size * (i + 1) + j;
+    if (this.densityMap[idxUp][k] >= 0 && this.densityMap[idxDown][k] >= 0 &&
+        this.densityMap[idx][k - 1] >= 0 && this.densityMap[idx][k + 1] >= 0 &&
+        this.densityMap[idx + 1][k] >= 0 && this.densityMap[idx - 1][k] >= 0) {
+      return false;
+    }
+    return true;
+  }
+
+
+  // Generates a psuedorandom 3D vector
+  private unit_vec3d(x: number, y: number, z: number): Vec3 {
+    let rng: Rand = new Rand(`${x}-${y}-${z}`);
+    let a = 2.0 * 3.1415926 * rng.next();
+    let b = 2.0 * 3.1415926 * rng.next();
+    let c = 2.0 * 3.1415926 * rng.next();
+    let vec: Vec3 = new Vec3([Math.cos(a), Math.sin(b), Math.cos(c)]);
+    return vec.normalize();
+  }
+
+  // Bi-Cubic interpolation
+  private smoothmix(a0: number, a1: number, w: number): number {
+    return (a1 - a0) * (3.0 - w * 2.0) * w * w + a0;
+  }
+
+  // CPU based 3D Perlin noise
+  private perlinDensity(gridSpace: number, coord: Vec3): number {
+    // Compare 3d coordinate to UV coordinate
+    let x0 = Math.floor(coord.x / gridSpace) * gridSpace;
+    let x1 = x0 + gridSpace;
+    let y0 = Math.floor(coord.y / gridSpace) * gridSpace;
+    let y1 = y0 + gridSpace;
+    let z0 = Math.floor(coord.z / gridSpace) * gridSpace;
+    let z1 = z0 + gridSpace;
+
+    // Get the distance between the coordinate and the surrounding points
+    let xd = (coord.x - x0) / (x1 - x0);
+    let yd = (coord.y - y0) / (y1 - y0);
+    let zd = (coord.z - z0) / (z1 - z0);
+
+    // Get the 8 surrounding points in the perlin grid
+    let p000: Vec3 = new Vec3([x0, y0, z0]);
+    let p001: Vec3 = new Vec3([x0, y0, z1]);
+    let p010: Vec3 = new Vec3([x0, y1, z0]);
+    let p011: Vec3 = new Vec3([x0, y1, z1]);
+    let p100: Vec3 = new Vec3([x1, y0, z0]);
+    let p101: Vec3 = new Vec3([x1, y0, z1]);
+    let p110: Vec3 = new Vec3([x1, y1, z0]);
+    let p111: Vec3 = new Vec3([x1, y1, z1]);
+
+    // Get unit vectors to interpolate between
+    let v000: Vec3 = this.unit_vec3d(p000.x, p000.y, p000.z);
+    let v001: Vec3 = this.unit_vec3d(p001.x, p001.y, p001.z);
+    let v010: Vec3 = this.unit_vec3d(p010.x, p010.y, p010.z);
+    let v011: Vec3 = this.unit_vec3d(p011.x, p011.y, p011.z);
+    let v100: Vec3 = this.unit_vec3d(p100.x, p100.y, p100.z);
+    let v101: Vec3 = this.unit_vec3d(p101.x, p101.y, p101.z);
+    let v110: Vec3 = this.unit_vec3d(p110.x, p110.y, p110.z);
+    let v111: Vec3 = this.unit_vec3d(p111.x, p111.y, p111.z);
+
+    let afin000: number =
+        Vec3.dot(Vec3.difference(coord, p000).scale(1.0 / gridSpace), v000);
+    let afin001: number =
+        Vec3.dot(Vec3.difference(coord, p001).scale(1.0 / gridSpace), v001);
+    let afin010: number =
+        Vec3.dot(Vec3.difference(coord, p010).scale(1.0 / gridSpace), v010);
+    let afin011: number =
+        Vec3.dot(Vec3.difference(coord, p011).scale(1.0 / gridSpace), v011);
+    let afin100: number =
+        Vec3.dot(Vec3.difference(coord, p100).scale(1.0 / gridSpace), v100);
+    let afin101: number =
+        Vec3.dot(Vec3.difference(coord, p101).scale(1.0 / gridSpace), v101);
+    let afin110: number =
+        Vec3.dot(Vec3.difference(coord, p110).scale(1.0 / gridSpace), v110);
+    let afin111: number =
+        Vec3.dot(Vec3.difference(coord, p111).scale(1.0 / gridSpace), v111);
+
+
+    // Trilinearly interpolate on X, Y, Z to get noise value
+    let c00 = this.smoothmix(afin000, afin100, xd);
+    let c01 = this.smoothmix(afin001, afin101, xd);
+    let c10 = this.smoothmix(afin010, afin110, xd);
+    let c11 = this.smoothmix(afin011, afin111, xd);
+    let c0 = this.smoothmix(c00, c10, yd);
+    let c1 = this.smoothmix(c01, c11, yd);
+    let c = this.smoothmix(c0, c1, zd);
+
+    // Add bias towards lower heights so we dont fall through the ground
+    return c * 0.5;
+  }
 
   private generateCubes() {
     // Coordinate of heightmap's top-left corner
@@ -261,13 +362,10 @@ export class Chunk {
     // TODO: The real landscape-generation logic. The example code below shows
     // you how to use the pseudorandom number generator to create a few cubes.
     this.cubes = this.size * this.size;
-    // this.cubePositionsF32 = new Float32Array(4 * this.cubes);
-    // const seed = `${topleftx}_${toplefty}`;
-    // let rng = new Rand(seed);
 
+    // TODO: 3D perlin noise for density values for cave terrain
     // Create multiple layers of value noise
     let octaves = 6;
-    let heightMap: Float32Array = new Float32Array(this.size * this.size);
     for (let i = 3; i < octaves; i++) {
       // Scale and blend them together to avoid overflow (heights should be
       // 0-100)
@@ -281,45 +379,73 @@ export class Chunk {
         return value + something[index];
       });
     }
-    // Analyze height map and render more cubes with the appropriate heights
-    // TODO: move this logic outside of the chunk class
+
+
+    // Generate density map for chunk
+    let densityMap = {};
     let totalCubes = 0;
     for (let i = 0; i < this.size; i++) {
       for (let j = 0; j < this.size; j++) {
         const idx = this.size * i + j;
         const height = Math.floor(this.heightMap[idx]);
-        if (i !== 0 && j !== 0 && i !== this.size - 1 && j !== this.size - 1) {
-          // Only render the cubes that are on and above the minimum neighbor
-          totalCubes += this.numCubesDrawn(this.heightMap, i, j);
-        } else {
-          // If we are on the edge, we want to render the cube
-          // TODO: logic to not render if there is a neighbor chunk
-          totalCubes += height;
+        densityMap[idx] = new Float32Array(height);
+        for (let k = 0; k < height; k++) {
+          // Single octave 3D perlin noise
+          let curPos = new Vec3([topleftx + i, toplefty + j, k]);
+          densityMap[idx][k] = this.perlinDensity(32, curPos);
+          // Add a bias towrds lower heights being less likely to be air
+          densityMap[idx][k] += 0.8 * ((40 - k) / 100);
         }
       }
     }
-    this.cubes = totalCubes;
+    // Use density map to check if we should render a cube
+    this.densityMap = densityMap;
+    for (let i = 0; i < this.size; i++) {
+      for (let j = 0; j < this.size; j++) {
+        const idx = this.size * i + j;
+        const height = Math.floor(this.heightMap[idx]);
+        for (let k = 0; k < height; k++) {
+          if (i !== 0 && j !== 0 && i !== this.size - 1 &&
+              j !== this.size - 1 && k !== height - 1 && k !== 0) {
+            // Check 6 neighbors and see if they are solid or not
+            let shouldDraw = this.shouldDrawBasedOnDensity(i, j, k);
+            totalCubes = (shouldDraw) ? totalCubes + 1 : totalCubes;
+          } else {
+            totalCubes++;
+          }
+        }
+      }
+    }
+
+
+    // Suboptimal rendering
     this.cubePositionsF32 = new Float32Array(4 * totalCubes);
+    this.cubes = totalCubes;
     let pos = 0;
     for (let i = 0; i < this.size; i++) {
       for (let j = 0; j < this.size; j++) {
         const idx = this.size * i + j;
         const height = Math.floor(this.heightMap[idx]);
-        if (i !== 0 && j !== 0 && i !== this.size - 1 && j !== this.size - 1) {
-          const numCubes = this.numCubesDrawn(this.heightMap, i, j);
-          for (let k = 0; k < numCubes; k++) {
-            // Changed cube orientation so that x is i and y is j
-            this.cubePositionsF32[4 * pos + 0] = topleftx + i;
-            this.cubePositionsF32[4 * pos + 1] = height - k;
-            this.cubePositionsF32[4 * pos + 2] = toplefty + j;
-            this.cubePositionsF32[4 * pos + 3] = 0;
-            pos++;
+
+        for (let k = 0; k < height; k++) {
+          // Only render if the cube is not air and does not have 6 blocks
+          // covering it
+          if (i !== 0 && j !== 0 && i !== this.size - 1 &&
+              j !== this.size - 1 && k !== height - 1 && k !== 0) {
+            let shouldDraw = this.shouldDrawBasedOnDensity(i, j, k);
+            if (shouldDraw) {
+              this.cubePositionsF32[4 * pos] = topleftx + i;
+              this.cubePositionsF32[4 * pos + 1] = k;
+              this.cubePositionsF32[4 * pos + 2] = toplefty + j;
+              this.cubePositionsF32[4 * pos + 3] = 0;
+              pos++;
+            }
           }
-        } else {
-          for (let k = 0; k < height; k++) {
-            // Changed cube orientation so that x is i and y is j
-            this.cubePositionsF32[4 * pos + 0] = topleftx + i;
-            this.cubePositionsF32[4 * pos + 1] = height - k;
+
+          // Only draw if the cube is not air
+          else if (densityMap[idx][k] >= 0) {
+            this.cubePositionsF32[4 * pos] = topleftx + i;
+            this.cubePositionsF32[4 * pos + 1] = k;
             this.cubePositionsF32[4 * pos + 2] = toplefty + j;
             this.cubePositionsF32[4 * pos + 3] = 0;
             pos++;
