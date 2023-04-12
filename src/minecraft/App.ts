@@ -21,21 +21,23 @@ export class Config {
   public static BORDER_CHUNKS: number = 1.0;
 
   // Number of chunks to store in cache before resetting; for hysteresis
-  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1) ** 2
+  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1)** 2
 
-  public static GRAVITY: number = -9.8;
+      public static GRAVITY: number = -9.8;
 
   public static JUMP_VELOCITY: number = 10.0;
 
   public static DAY_TIME_SECONDS: number = 60.0
 
-  public static NIGHT_COLOR: Vec4 =
-    new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
+      public static NIGHT_COLOR: Vec4 =
+          new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
 
   public static DAY_COLOR: Vec4 =
-    new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);
+      new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);
 
   public static CREATIVE_MODE: boolean = false;
+
+  public static PERLIN_3D: boolean = false;
 }
 
 export class MinecraftAnimation extends CanvasAnimation {
@@ -238,11 +240,11 @@ export class MinecraftAnimation extends CanvasAnimation {
    *
    */
   public draw(): void {
-      // TODO: Logic for a rudimentary walking simulator. Check for collisions and
-      // reject attempts to walk into a cube. Handle gravity, jumping, and loading
-      // of new chunks when necessary.
-      this.generateChunks();
-      if (!Config.CREATIVE_MODE) {
+    // TODO: Logic for a rudimentary walking simulator. Check for collisions and
+    // reject attempts to walk into a cube. Handle gravity, jumping, and loading
+    // of new chunks when necessary.
+    this.generateChunks();
+    if (!Config.CREATIVE_MODE) {
       let position: Vec3 = new Vec3(this.playerPosition.xyz);
       let chunks: Chunk[] = this.collisionChunks(this.playerPosition);
       position.add(this.gui.walkDir());
@@ -260,17 +262,17 @@ export class MinecraftAnimation extends CanvasAnimation {
           this.playerPosition = position;
         }
       }
-
       position = new Vec3(this.playerPosition.xyz);
-      let velocity: Vec3 = new Vec3(
-          [0.0, Config.GRAVITY * (Date.now() - this.gravityTime) / 1000.0, 0.0]);
+      let velocity: Vec3 = new Vec3([
+        0.0, Config.GRAVITY * (Date.now() - this.gravityTime) / 1000.0, 0.0
+      ]);
       velocity.add(this.verticalVelocity);
       velocity.scale((Date.now() - this.frameTime) / 1000.0)
       position.add(velocity);
       this.frameTime = Date.now();
       let safe: boolean = true;
       for (let i = 0; i < chunks.length; i++) {
-        let height = chunks[i].verticalCollision(position);
+        let height = chunks[i].verticalCollision(position, velocity.y > 0);
         if (height != Number.MIN_SAFE_INTEGER) {
           this.playerPosition.y = height + Config.PLAYER_HEIGHT;
           this.onGround = true;
@@ -285,23 +287,29 @@ export class MinecraftAnimation extends CanvasAnimation {
         this.playerPosition = position;
       }
       this.gui.getCamera().setPos(this.playerPosition);
-    }
-    else {
+    } else {
       this.playerPosition.add(this.gui.walkDir());
       this.gui.getCamera().setPos(this.playerPosition);
       this.gravityTime = Date.now();
     }
 
-    let ellipseCenter: Vec4 = new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);
-    let cycleTime: number = (Date.now() / ((Config.DAY_TIME_SECONDS / 60.0) * 10000.0)) % (2 * Math.PI);
+    let ellipseCenter: Vec4 =
+        new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);
+    let cycleTime: number =
+        (Date.now() / ((Config.DAY_TIME_SECONDS / 60.0) * 10000.0)) %
+        (2 * Math.PI);
     let sinT: number = Math.sin(cycleTime);
     let cosT: number = Math.cos(cycleTime);
-    let curveVector: Vec4 = new Vec4([1000.0 * sinT, 1000.0 * cosT, 1000.0 * sinT, 1.0]);
+    let curveVector: Vec4 =
+        new Vec4([1000.0 * sinT, 1000.0 * cosT, 1000.0 * sinT, 1.0]);
     this.lightPosition = Vec4.sum(ellipseCenter, curveVector);
 
-    let heightPercent: number = Math.max((this.lightPosition.y + 500.0) / 1500.0, 0.0);
-    this.backgroundColor = Vec4.sum(Config.NIGHT_COLOR,
-        Vec4.difference(Config.DAY_COLOR, Config.NIGHT_COLOR).scale(heightPercent));
+    let heightPercent: number =
+        Math.max((this.lightPosition.y + 500.0) / 1500.0, 0.0);
+    this.backgroundColor = Vec4.sum(
+        Config.NIGHT_COLOR,
+        Vec4.difference(Config.DAY_COLOR, Config.NIGHT_COLOR)
+            .scale(heightPercent));
     this.backgroundColor.w = 1.0;
 
     // Drawing
