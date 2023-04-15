@@ -1,7 +1,7 @@
 import Rand from '../lib/rand-seed/Rand.js';
 import {Mat3, Mat4, Vec2, Vec3, Vec4} from '../lib/TSM.js';
 
-import {Config} from './App.js';
+import {ChunkVectors, Config} from './App.js';
 
 export class Chunk {
   private cubes: number;  // Number of cubes that should be *drawn* each frame
@@ -14,7 +14,6 @@ export class Chunk {
   private heightMap: Float32Array;
   private densityMap: Object;
   private maxHeight: number = 100;
-  private unitVecs: Object;
 
   constructor(centerX: number, centerY: number, size: number) {
     this.x = centerX;
@@ -22,7 +21,6 @@ export class Chunk {
     this.size = size;
     this.cubes = size * size;
     this.heightMap = new Float32Array(this.size * this.size);
-    this.unitVecs = {};
     this.generateCubes();
   }
 
@@ -259,21 +257,7 @@ export class Chunk {
 
     return retArray;
   }
-  // Lookup the number of cubes to draw at a given x y coordinate
-  private numCubesDrawn(arr: Float32Array, i: number, j: number): number {
-    const idx = this.size * i + j;
-    // up
 
-    const idxUp = this.size * (i - 1) + j;
-    const idxDown = this.size * (i + 1) + j;
-    const idxLeft = this.size * i + j - 1;
-    const idxRight = this.size * i + j + 1;
-    const heightNeigh =
-        [arr[idx], arr[idxUp], arr[idxDown], arr[idxLeft], arr[idxRight]];
-    const minNeigh = Math.min(...heightNeigh);
-
-    return Math.floor(arr[idx] - minNeigh + 1);
-  }
   private shouldDrawBasedOnDensity(i: number, j: number, k: number): boolean {
     // TODO: Should be within bounds
     let idx = this.size * i + j;
@@ -295,20 +279,17 @@ export class Chunk {
 
   // Generates a psuedorandom 3D vector
   private unit_vec3d(x: number, y: number, z: number): Vec3 {
-    // Used memoixed vectors if they exist
-    let seed: string = `${x}-${y}-${z}`;
-    if (seed in this.unitVecs) {
-      return this.unitVecs[seed];
-    }
-    let rng: Rand = new Rand(seed);
-    let a = 2.0 * 3.1415926 * rng.next();
-    let b = 2.0 * 3.1415926 * rng.next();
-    let c = 2.0 * 3.1415926 * rng.next();
-    let vec: Vec3 = new Vec3([Math.cos(a), Math.sin(b), Math.cos(c)]);
-    // Memoize the vector
-    vec.normalize();
-    this.unitVecs[seed] = vec;
-    return vec;
+    // Constants for hashing
+    const PRIME1 = 73856093;
+    const PRIME2 = 19349663;
+    const PRIME3 = 83492791;
+
+    // Combine the input values into a single hash value
+    let hash = x * PRIME1;
+    hash ^= y * PRIME2;
+    hash ^= z * PRIME3;
+
+    return ChunkVectors.VERTICES[Math.abs(hash) % ChunkVectors.SIZE];
   }
 
   // Bi-Cubic interpolation
@@ -318,56 +299,57 @@ export class Chunk {
 
   // CPU based 3D Perlin noise
   private perlinDensity(gridSpace: number, coord: Vec3): number {
+    // Create clone of coordinate
+    let coordN = new Vec3(
+        [coord.x / gridSpace, coord.y / gridSpace, coord.z / gridSpace]);
+
     // Compare 3d coordinate to UV coordinate
-    let x0 = Math.floor(coord.x / gridSpace) * gridSpace;
-    let x1 = x0 + gridSpace;
-    let y0 = Math.floor(coord.y / gridSpace) * gridSpace;
-    let y1 = y0 + gridSpace;
-    let z0 = Math.floor(coord.z / gridSpace) * gridSpace;
-    let z1 = z0 + gridSpace;
+    let x0 = Math.floor(coordN.x);
+    let x1 = x0 + 1.0;
+    let y0 = Math.floor(coordN.y);
+    let y1 = y0 + 1.0;
+    let z0 = Math.floor(coordN.z);
+    let z1 = z0 + 1.0;
 
     // Get the distance between the coordinate and the surrounding points
-    let xd = (coord.x - x0) / (x1 - x0);
-    let yd = (coord.y - y0) / (y1 - y0);
-    let zd = (coord.z - z0) / (z1 - z0);
-
-    // Get the 8 surrounding points in the perlin grid
-    let p000: Vec3 = new Vec3([x0, y0, z0]);
-    let p001: Vec3 = new Vec3([x0, y0, z1]);
-    let p010: Vec3 = new Vec3([x0, y1, z0]);
-    let p011: Vec3 = new Vec3([x0, y1, z1]);
-    let p100: Vec3 = new Vec3([x1, y0, z0]);
-    let p101: Vec3 = new Vec3([x1, y0, z1]);
-    let p110: Vec3 = new Vec3([x1, y1, z0]);
-    let p111: Vec3 = new Vec3([x1, y1, z1]);
+    let xd = (coordN.x - x0) / (x1 - x0);
+    let yd = (coordN.y - y0) / (y1 - y0);
+    let zd = (coordN.z - z0) / (z1 - z0);
 
     // Get unit vectors to interpolate between
-    let v000: Vec3 = this.unit_vec3d(p000.x, p000.y, p000.z);
-    let v001: Vec3 = this.unit_vec3d(p001.x, p001.y, p001.z);
-    let v010: Vec3 = this.unit_vec3d(p010.x, p010.y, p010.z);
-    let v011: Vec3 = this.unit_vec3d(p011.x, p011.y, p011.z);
-    let v100: Vec3 = this.unit_vec3d(p100.x, p100.y, p100.z);
-    let v101: Vec3 = this.unit_vec3d(p101.x, p101.y, p101.z);
-    let v110: Vec3 = this.unit_vec3d(p110.x, p110.y, p110.z);
-    let v111: Vec3 = this.unit_vec3d(p111.x, p111.y, p111.z);
+    let v000: Vec3 = this.unit_vec3d(x0, y0, z0);
+    let v001: Vec3 = this.unit_vec3d(x0, y0, z1);
+    let v010: Vec3 = this.unit_vec3d(x0, y1, z0);
+    let v011: Vec3 = this.unit_vec3d(x0, y1, z1);
+    let v100: Vec3 = this.unit_vec3d(x1, y0, z0);
+    let v101: Vec3 = this.unit_vec3d(x1, y0, z1);
+    let v110: Vec3 = this.unit_vec3d(x1, y1, z0);
+    let v111: Vec3 = this.unit_vec3d(x1, y1, z1);
 
     let afin000: number =
-        Vec3.dot(Vec3.difference(coord, p000).scale(1.0 / gridSpace), v000);
+        ((coordN.x - x0) * v000.x + (coordN.y - y0) * v000.y +
+         (coordN.z - z0) * v000.z);
     let afin001: number =
-        Vec3.dot(Vec3.difference(coord, p001).scale(1.0 / gridSpace), v001);
+        ((coordN.x - x0) * v001.x + (coordN.y - y0) * v001.y +
+         (coordN.z - z1) * v001.z);
     let afin010: number =
-        Vec3.dot(Vec3.difference(coord, p010).scale(1.0 / gridSpace), v010);
+        ((coordN.x - x0) * v010.x + (coordN.y - y1) * v010.y +
+         (coordN.z - z0) * v010.z);
     let afin011: number =
-        Vec3.dot(Vec3.difference(coord, p011).scale(1.0 / gridSpace), v011);
+        ((coordN.x - x0) * v011.x + (coordN.y - y1) * v011.y +
+         (coordN.z - z1) * v011.z);
     let afin100: number =
-        Vec3.dot(Vec3.difference(coord, p100).scale(1.0 / gridSpace), v100);
+        ((coordN.x - x1) * v100.x + (coordN.y - y0) * v100.y +
+         (coordN.z - z0) * v100.z);
     let afin101: number =
-        Vec3.dot(Vec3.difference(coord, p101).scale(1.0 / gridSpace), v101);
+        ((coordN.x - x1) * v101.x + (coordN.y - y0) * v101.y +
+         (coordN.z - z1) * v101.z);
     let afin110: number =
-        Vec3.dot(Vec3.difference(coord, p110).scale(1.0 / gridSpace), v110);
+        ((coordN.x - x1) * v110.x + (coordN.y - y1) * v110.y +
+         (coordN.z - z0) * v110.z);
     let afin111: number =
-        Vec3.dot(Vec3.difference(coord, p111).scale(1.0 / gridSpace), v111);
-
+        ((coordN.x - x1) * v111.x + (coordN.y - y1) * v111.y +
+         (coordN.z - z1) * v111.z);
 
     // Trilinearly interpolate on X, Y, Z to get noise value
     let c00 = this.smoothmix(afin000, afin100, xd);

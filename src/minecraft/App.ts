@@ -1,3 +1,4 @@
+import Rand from '../lib/rand-seed/Rand.js';
 import {Mat4, Vec3, Vec4} from '../lib/TSM.js';
 import {Camera} from '../lib/webglutils/Camera.js';
 import {CanvasAnimation, WebGLUtilities,} from '../lib/webglutils/CanvasAnimation.js';
@@ -21,16 +22,16 @@ export class Config {
   public static BORDER_CHUNKS: number = 1.0;
 
   // Number of chunks to store in cache before resetting; for hysteresis
-  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1)** 2
+  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1) ** 2;
 
-      public static GRAVITY: number = -9.8;
+  public static GRAVITY: number = -9.8;
 
   public static JUMP_VELOCITY: number = 10.0;
 
-  public static DAY_TIME_SECONDS: number = 60.0
+  public static DAY_TIME_SECONDS: number = 60.0;
 
-      public static NIGHT_COLOR: Vec4 =
-          new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
+  public static NIGHT_COLOR: Vec4 =
+      new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
 
   public static DAY_COLOR: Vec4 =
       new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);
@@ -38,6 +39,11 @@ export class Config {
   public static CREATIVE_MODE: boolean = false;
 
   public static PERLIN_3D: boolean = false;
+}
+
+export class ChunkVectors {
+  public static SIZE: number = 500;
+  public static VERTICES: Vec3[] = [];
 }
 
 export class MinecraftAnimation extends CanvasAnimation {
@@ -91,6 +97,19 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     this.lightPosition = new Vec4([-1000, 1000, -1000, 1]);
     this.backgroundColor = new Vec4([0.0, 0.37254903, 0.37254903, 1.0]);
+
+    // Initialize the possible 3D perlin noise vectors
+    let seed: string = '42';
+    let rng: Rand = new Rand(seed);
+    let numVecs = ChunkVectors.SIZE;
+    for (let i = 0; i < numVecs; i++) {
+      let a = 2.0 * 3.1415926 * rng.next();
+      let b = 2.0 * 3.1415926 * rng.next();
+      let c = 2.0 * 3.1415926 * rng.next();
+      let vec: Vec3 = new Vec3([Math.cos(a), Math.sin(b), Math.cos(c)]);
+      vec.normalize();
+      ChunkVectors.VERTICES.push(vec);
+    }
   }
 
   private chunkKey(x: number, z: number): string {
