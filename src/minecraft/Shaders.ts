@@ -169,14 +169,17 @@ export const blankCubeFSText = `
         float dot_nl = dot(normalize(lightDirection), normalize(normal));
 	    dot_nl = clamp(dot_nl, 0.0, 1.0);
 
-        // Lava/Magma only generates on low locations
+        // Highlight logic for the block
         if (highlight >= 2.0 - epsilon) {
             if (highlight >= 2.0 - epsilon && highlight <= 2.0 + epsilon) { 
+                // Green
                 gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
             } else {
+                // Red
                 gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
             }
         } else {
+            // Lava/Magma only generates on low locations
             if(wsPos.y < 20.5) {
                 vec3 magma = perlinMagma(uv, seed);
                 gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* magma, 1.0);

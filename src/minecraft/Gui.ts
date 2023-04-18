@@ -24,7 +24,7 @@ interface IGUI {
 
 export class GUI implements IGUI {
   private static readonly rotationSpeed: number = 0.01;
-  private static readonly walkSpeed: number = 1;
+  public static readonly walkSpeed: number = 0.5;
   private static readonly rollSpeed: number = 0.1;
   private static readonly panSpeed: number = 0.1;
 

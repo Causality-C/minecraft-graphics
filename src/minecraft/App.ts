@@ -262,7 +262,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     if (!Config.CREATIVE_MODE) {
       let position: Vec3 = new Vec3(this.playerPosition.xyz);
       let chunks: Chunk[] = this.collisionChunks(this.playerPosition);
-      position.add(this.gui.walkDir().scale(0.5));
+      position.add(this.gui.walkDir().scale(GUI.walkSpeed));
       if (!position.equals(this.playerPosition)) {
         let safe: boolean = true;
         for (let i = 0; i < chunks.length; i++) {
@@ -303,7 +303,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       }
       this.gui.getCamera().setPos(this.playerPosition);
     } else {
-      this.playerPosition.add(this.gui.walkDir().scale(0.5));
+      this.playerPosition.add(this.gui.walkDir().scale(GUI.walkSpeed));
       this.gui.getCamera().setPos(this.playerPosition);
       this.gravityTime = Date.now();
     }
