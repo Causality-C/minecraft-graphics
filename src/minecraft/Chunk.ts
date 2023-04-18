@@ -388,11 +388,7 @@ export class Chunk {
   private gen2DZeros(size: number) : number[] {
     const arr: number[] = [];
     for (let i = 0; i < size * size; i++) {
-        if (i != Math.floor(size * size / 2)) {
-          arr.push(50);
-        } else {
-          arr.push(51);
-        }
+      arr.push(50);
     }
     return arr;
 }
@@ -423,7 +419,7 @@ export class Chunk {
       });
     }
 
-    // this.heightMap = new Float32Array(this.gen2DZeros(this.size));
+    this.heightMap = new Float32Array(this.gen2DZeros(this.size));
 
 
     // Generate density map for chunk
@@ -616,6 +612,7 @@ export class Chunk {
             }
           } else {
             addCubes.push([x, y, z]);
+            updatedCubes += modificationLog[i][3];
           }
           
       }
@@ -623,6 +620,7 @@ export class Chunk {
     if (!modification) {
       return;
     }
+    console.log("MODIFYING CHUNK", topleftx, toplefty, addCubes, this.cubes, updatedCubes);
 
     // Copy cube positions into updated array with the selected cube either
     // added or removed

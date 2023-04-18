@@ -147,6 +147,7 @@ export class GUI implements IGUI {
     ray.scale(t);
     const selectedCube = Vec3.sum(origin, ray);
     this.selectedCube = new Vec3([Math.round(selectedCube.x), Math.round(selectedCube.y), Math.round(selectedCube.z)]);
+    console.log(this.selectedCube.xyz)
     this.animation.updateSelectedCube(this.selectedCube);
     // console.log(ray.xyz, origin.xyz, selectedBox.xyz, t)
     // for (let chunkKey in this.animation.chunks) {
