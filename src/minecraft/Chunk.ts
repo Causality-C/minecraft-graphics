@@ -586,6 +586,74 @@ export class Chunk {
     this.cubes = updatedCubes;
   }
 
+  public updateFromLog(modificationLog: number[][]) {
+    const topleftx = this.x - this.size / 2;
+    const toplefty = this.y - this.size / 2;
+    const bottomrightx = this.x + this.size / 2;
+    const bottomrighty = this.y + this.size / 2;
+    // Get the modifications for the current the current chunk
+    let removeCubes = {};
+    let addCubes: number[][] = [];
+    let modification = false;
+    let updatedCubes = this.cubes;
+    for (let i = 0; i < modificationLog.length; ++i) {
+      const x = modificationLog[i][0];
+      const y = modificationLog[i][1];
+      const z = modificationLog[i][2];
+      if (topleftx <= x && x < bottomrightx &&
+        toplefty <= z && z < bottomrighty) {
+          modification = true;
+          if (modificationLog[i][3] < 0) {
+            if (!(x in removeCubes)) {
+              removeCubes[x] = {};
+            }
+            if (!(y in removeCubes[x])) {
+              removeCubes[x][y] = {};
+            }
+            if (!(z in removeCubes[x][y])) {
+              removeCubes[x][y][z] = modificationLog[i][3];
+              updatedCubes += modificationLog[i][3];
+            }
+          } else {
+            addCubes.push([x, y, z]);
+          }
+          
+      }
+    }
+    if (!modification) {
+      return;
+    }
+
+    // Copy cube positions into updated array with the selected cube either
+    // added or removed
+    let updatedPositionsF32 = new Float32Array(4 * updatedCubes);
+    let j = 0;
+    for (let i = 0; i < this.cubes; ++i) {
+      const x = this.cubePositionsF32[4 * i];
+      const y = this.cubePositionsF32[4 * i + 1];
+      const z = this.cubePositionsF32[4 * i + 2];
+      if (x in removeCubes && y in removeCubes[x] && z in removeCubes[x][y]) {
+          continue;
+      }
+      updatedPositionsF32[4 * j] = this.cubePositionsF32[4 * i];
+      updatedPositionsF32[4 * j + 1] = this.cubePositionsF32[4 * i + 1];
+      updatedPositionsF32[4 * j + 2] = this.cubePositionsF32[4 * i + 2];
+      updatedPositionsF32[4 * j + 3] = this.cubePositionsF32[4 * i + 3];
+      ++j;
+    }
+    for (let i = 0; i < addCubes.length; ++i) {
+      updatedPositionsF32[4 * j] = addCubes[i][0];
+      updatedPositionsF32[4 * j + 1] = addCubes[i][1];
+      updatedPositionsF32[4 * j + 2] = addCubes[i][2];
+      updatedPositionsF32[4 * j + 3] = 0;
+      ++j;
+    }
+    // Update internal data structures
+    this.cubePositionsF32 = updatedPositionsF32;
+    this.cubes = updatedCubes;
+
+  }
+
   public cubePositions(): Float32Array {
     return this.cubePositionsF32;
   }

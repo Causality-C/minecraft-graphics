@@ -138,6 +138,7 @@ export class MinecraftAnimation extends CanvasAnimation {
         newChunks[key] = this.cache[key];
       } else {
         newChunks[key] = new Chunk(xCoords[i], zCoords[i], Config.CHUNK_SIZE);
+        newChunks[key].updateFromLog(this.modificationLog);
       }
       if (i == Math.floor(((1 + 2 * Config.BORDER_CHUNKS) ** 2) / 2)) {
         this.chunk = newChunks[key];
@@ -401,7 +402,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     // Remove the cube if it already exists (reverting to original chunk),
     // otherwise add it
     if (!cubeInLog) {
-      newLog.push([x, y, z]);
+      newLog.push([x, y, z, this.removeCube ? -1 : 1]);
     }
     this.modificationLog = newLog;
     for (let chunk in this.chunks) {
