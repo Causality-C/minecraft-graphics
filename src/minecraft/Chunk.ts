@@ -422,7 +422,7 @@ export class Chunk {
       });
     }
 
-    this.heightMap = new Float32Array(this.gen2DZeros(this.size));
+//     this.heightMap = new Float32Array(this.gen2DZeros(this.size));
 
 
     // Generate density map for chunk
