@@ -77,6 +77,9 @@ export class Chunk {
           if (x >= 0 && y >= 0 && x < this.size && y < this.size) {
             let idx = x * this.size + y;
             for (let k = 0; k <= Config.PLAYER_HEIGHT; k++) {
+              if (top - k < this.densityMap[idx].length) {
+                console.log("SIDE COLLISION", idx, top -k, this.densityMap[idx][top - k])
+              }
               if (top - k < this.densityMap[idx].length &&
                   this.densityMap[idx][top - k] >= 0) {
                 return true;
@@ -558,9 +561,29 @@ export class Chunk {
     let updatedPositionsF32 = new Float32Array(4 * updatedCubes);
     let j = 0;
     for (let i = 0; i < this.cubes; ++i) {
+      // Skip cube to no longer render it
       if (removeCube && this.cubePositionsF32[4 * i] == selectedCube.x &&
         this.cubePositionsF32[4 * i + 1] == selectedCube.y &&
         this.cubePositionsF32[4 * i + 2] == selectedCube.z) {
+          // Update collision logic to remove cube
+          const x = Math.round(selectedCube.x - topleftx);
+          const z = Math.round(selectedCube.z - toplefty);
+          let idx = x * this.size + z;
+          // Update height of density map just in case
+          const y = selectedCube.y;
+          const length: number = Math.floor(this.densityMap[idx].length);
+          if (y <= length) {
+            const updatedMap = new Float32Array(y + 1);
+            for (let i = 0; i < length; ++i) {
+              updatedMap[i] = this.densityMap[idx][i];
+            }
+            for (let i = length; i < y; ++i) {
+              updatedMap[i] = -1.0;
+            }
+            updatedMap[y] = -1.0;
+            this.densityMap[idx] = updatedMap;
+          }
+          this.densityMap[idx][selectedCube.y] = -1.0
           continue;
         }
         updatedPositionsF32[4 * j] = this.cubePositionsF32[4 * i];
@@ -569,12 +592,33 @@ export class Chunk {
         updatedPositionsF32[4 * j + 3] = this.cubePositionsF32[4 * i + 3];
         ++j;
     }
+    // Add the cube to redner
     if (!removeCube) {
       updatedPositionsF32[4 * j] = selectedCube.x;
       updatedPositionsF32[4 * j + 1] = selectedCube.y;
       updatedPositionsF32[4 * j + 2] = selectedCube.z;
       updatedPositionsF32[4 * j + 3] = 3;
       this.highlightedCubePos = j;
+
+      // Update collision logic to add cube
+      const x = Math.round(selectedCube.x - topleftx);
+      const z = Math.round(selectedCube.z - toplefty);
+      let idx = x * this.size + z;
+      const y = selectedCube.y;
+      const length: number = Math.floor(this.densityMap[idx].length);
+      // Update size of density map to accomadate new block
+      if (y <= length) {
+        const updatedMap = new Float32Array(y + 1);
+        for (let i = 0; i < length; ++i) {
+          updatedMap[i] = this.densityMap[idx][i];
+        }
+        for (let i = length; i < y; ++i) {
+          updatedMap[i] = -1.0;
+        }
+        updatedMap[y] = 1.0;
+        this.densityMap[idx] = updatedMap;
+      }
+      this.densityMap[idx][y] = 1.0
     }
 
     // Update internal data structures
@@ -620,18 +664,35 @@ export class Chunk {
     if (!modification) {
       return;
     }
-    console.log("MODIFYING CHUNK", topleftx, toplefty, addCubes, this.cubes, updatedCubes);
 
     // Copy cube positions into updated array with the selected cube either
     // added or removed
     let updatedPositionsF32 = new Float32Array(4 * updatedCubes);
     let j = 0;
     for (let i = 0; i < this.cubes; ++i) {
-      const x = this.cubePositionsF32[4 * i];
-      const y = this.cubePositionsF32[4 * i + 1];
-      const z = this.cubePositionsF32[4 * i + 2];
+      let x = this.cubePositionsF32[4 * i];
+      let y = this.cubePositionsF32[4 * i + 1];
+      let z = this.cubePositionsF32[4 * i + 2];
       if (x in removeCubes && y in removeCubes[x] && z in removeCubes[x][y]) {
-          continue;
+        // Update collision logic to remove cube
+        x = Math.round(x - topleftx);
+        z = Math.round(z - toplefty);
+        let idx = x * this.size + z;
+        // Update height of density map just in case
+        const length: number = Math.floor(this.densityMap[idx].length);
+        if (y <= length) {
+          const updatedMap = new Float32Array(y + 1);
+          for (let i = 0; i < length; ++i) {
+            updatedMap[i] = this.densityMap[idx][i];
+          }
+          for (let i = length; i < y; ++i) {
+            updatedMap[i] = -1.0;
+          }
+          updatedMap[y] = -1.0;
+          this.densityMap[idx] = updatedMap;
+        }
+        this.densityMap[idx][y] = -1.0
+        continue;
       }
       updatedPositionsF32[4 * j] = this.cubePositionsF32[4 * i];
       updatedPositionsF32[4 * j + 1] = this.cubePositionsF32[4 * i + 1];
@@ -645,6 +706,26 @@ export class Chunk {
       updatedPositionsF32[4 * j + 2] = addCubes[i][2];
       updatedPositionsF32[4 * j + 3] = 0;
       ++j;
+
+      // Update collision logic to add cube
+      const x = Math.round(addCubes[i][0] - topleftx);
+      const z = Math.round(addCubes[i][2] - toplefty);
+      let idx = x * this.size + z;
+      const y = addCubes[i][1];
+      const length: number = Math.floor(this.densityMap[idx].length);
+      // Update size of density map to accomadate new block
+      if (y <= length) {
+        const updatedMap = new Float32Array(y + 1);
+        for (let i = 0; i < length; ++i) {
+          updatedMap[i] = this.densityMap[idx][i];
+        }
+        for (let i = length; i < y; ++i) {
+          updatedMap[i] = -1.0;
+        }
+        updatedMap[y] = 1.0;
+        this.densityMap[idx] = updatedMap;
+      }
+      this.densityMap[idx][y] = 1.0
     }
     // Update internal data structures
     this.cubePositionsF32 = updatedPositionsF32;
