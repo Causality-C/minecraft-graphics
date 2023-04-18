@@ -538,7 +538,6 @@ export class Chunk {
           // Remove the cube
           let idx = (selectedCube.x - topleftx) * this.size + (selectedCube.z - toplefty);
           this.densityMap[idx][selectedCube.y] = -1.0;
-          console.log(idx,this.densityMap[idx]);
           continue;
         }
         // Else we copy the cube position into the updated array
@@ -559,7 +558,6 @@ export class Chunk {
       // Update height map and density map if we add a cube
       let idx = (selectedCube.x - topleftx) * this.size + (selectedCube.z - toplefty);
       let height = this.heightMap[idx];
-      console.log(selectedCube.y,height);
       // This is the case where we add a cube on top of the current height
       if(selectedCube.y >= height) {
         // We're building even higher than the current height
@@ -574,7 +572,6 @@ export class Chunk {
       else{
         this.densityMap[idx][selectedCube.y] = 1.0;
       }
-      console.log(this.densityMap[idx]);
     }
 
     // Update internal data structures
@@ -635,7 +632,6 @@ export class Chunk {
         // Update collision logic to remove cube
           let idx = (x - topleftx) * this.size + (z - toplefty);
           this.densityMap[idx][y] = -1.0;
-          console.log(idx,this.densityMap[idx]);
           continue;
       }
       updatedPositionsF32[4 * j] = this.cubePositionsF32[4 * i];
