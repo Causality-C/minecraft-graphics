@@ -16,6 +16,8 @@ export class Config {
 
   public static CHUNK_SIZE: number = 64.0;
 
+  public static SELECT_RADIUS: number = 3.0;
+
   // Number of chunks to render outside of the player's chunk
   // 1 --> 3 x 3, 2 -> 5 x 5, ... n -> 2n+1 x 2n+1
   public static BORDER_CHUNKS: number = 1.0;
@@ -50,6 +52,13 @@ export class MinecraftAnimation extends CanvasAnimation {
   /*  Cube Rendering */
   private cubeGeometry: Cube;
   private blankCubeRenderPass: RenderPass;
+
+  /* Cube Selection */
+  private selectedCubeF32: Float32Array;
+  private highlightSelected: boolean;
+  public highlightOn: boolean;
+  private removeCube: boolean;
+  private modificationLog: number[][];
 
   /* Global Rendering Info */
   private lightPosition: Vec4;
@@ -91,6 +100,9 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     this.lightPosition = new Vec4([-1000, 1000, -1000, 1]);
     this.backgroundColor = new Vec4([0.0, 0.37254903, 0.37254903, 1.0]);
+    this.highlightSelected = false;
+    this.highlightOn = false;
+    this.modificationLog = [];
   }
 
   private chunkKey(x: number, z: number): string {
@@ -336,6 +348,11 @@ export class MinecraftAnimation extends CanvasAnimation {
           'aOffset', this.chunks[chunk].cubePositions());
       this.blankCubeRenderPass.drawInstanced(this.chunks[chunk].numCubes());
     }
+    if (this.highlightSelected && this.highlightOn) {
+      this.blankCubeRenderPass.updateAttributeBuffer(
+        'aOffset', this.selectedCubeF32);
+      this.blankCubeRenderPass.drawInstanced(1);
+    }
   }
 
   public getGUI(): GUI {
@@ -348,6 +365,49 @@ export class MinecraftAnimation extends CanvasAnimation {
     if (this.onGround) {
       this.verticalVelocity = new Vec3([0.0, Config.JUMP_VELOCITY, 0.0]);
     }
+  }
+
+  public updateSelectedCube(selectedCube: Vec3) {
+    this.selectedCubeF32 = new Float32Array(4 * 1);
+    this.selectedCubeF32[0] = selectedCube.x;
+    this.selectedCubeF32[1] = selectedCube.y;
+    this.selectedCubeF32[2] = selectedCube.z;
+    this.selectedCubeF32[3] = 2.0;
+
+    let isRemovingCube = false;
+    for (let chunk in this.chunks) {
+      isRemovingCube = isRemovingCube || this.chunks[chunk].updateSelected(this.highlightOn, selectedCube);
+    }
+    this.removeCube = isRemovingCube;
+    this.highlightSelected = true;
+  }
+
+  public modifyLandscape(selectedCube: Vec3) {
+    const x = selectedCube.x;
+    const y = selectedCube.y;
+    const z = selectedCube.z;
+    // See if the selected cube is already in the modification log
+    let newLog: number[][] = [];
+    let cubeInLog = false;
+    for (let i = 0; i < this.modificationLog.length; ++i) {
+      if (this.modificationLog[i][0] == x &&
+          this.modificationLog[i][1] == y &&
+          this.modificationLog[i][2] == z) {
+            cubeInLog = true;
+      } else {
+        newLog.push(this.modificationLog[i]);
+      }
+    }
+    // Remove the cube if it already exists (reverting to original chunk),
+    // otherwise add it
+    if (!cubeInLog) {
+      newLog.push([x, y, z]);
+    }
+    this.modificationLog = newLog;
+    for (let chunk in this.chunks) {
+      this.chunks[chunk].updateLandscape(this.removeCube, selectedCube);
+    }
+    this.removeCube = !this.removeCube;
   }
 }
 

@@ -13,10 +13,12 @@ export const blankCubeVSText = `
     varying vec4 normal;
     varying vec4 wsPos;
     varying vec2 uv;
+    varying float highlight;
 
     void main () {
-
-        gl_Position = uProj * uView * (aVertPos + aOffset);
+        vec4 offset = vec4(aOffset.x, aOffset.y, aOffset.z, 0.0);
+        highlight = aOffset.w;
+        gl_Position = uProj * uView * (aVertPos + offset);
         wsPos = aVertPos + aOffset;
         normal = normalize(aNorm);
         uv = aUV;
@@ -32,6 +34,7 @@ export const blankCubeFSText = `
     varying vec4 normal;
     varying vec4 wsPos;
     varying vec2 uv;
+    varying float highlight;
 
     float smoothmix(float a0, float a1, float w) {
         return (a1 - a0) * (3.0 - w * 2.0) * w * w + a0;
@@ -159,6 +162,7 @@ export const blankCubeFSText = `
         float seed = 10.0;
         vec3 kd = vec3(1.0, 1.0, 1.0);
         vec3 ka = vec3(0.3, 0.3, 0.3);
+        float epsilon = 0.1;
 
         /* Compute light fall off */
         vec4 lightDirection = uLightPos - wsPos;
@@ -166,20 +170,29 @@ export const blankCubeFSText = `
 	    dot_nl = clamp(dot_nl, 0.0, 1.0);
 
         // Lava/Magma only generates on low locations
-        if(wsPos.y < 20.5) {
-            vec3 magma = perlinMagma(uv, seed);
-            gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* magma, 1.0);
+        if (highlight >= 2.0 - epsilon) {
+            if (highlight >= 2.0 - epsilon && highlight <= 2.0 + epsilon) { 
+                gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+            } else {
+                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        } else {
+            if(wsPos.y < 20.5) {
+                vec3 magma = perlinMagma(uv, seed);
+                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* magma, 1.0);
+            }
+            // Snow only generates on high locations
+            else if(wsPos.y > 55.0){
+                vec3 snow = perlinSnow(uv, seed);
+                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* snow, 1.0);
+            }
+            // Stone
+            else{
+                vec3 stone = perlinStone(uv, seed);
+                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* stone, 1.0);
+            }
         }
-        // Snow only generates on high locations
-        else if(wsPos.y > 55.0){
-            vec3 snow = perlinSnow(uv, seed);
-            gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* snow, 1.0);
-        }
-        // Stone
-        else{
-            vec3 stone = perlinStone(uv, seed);
-            gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* stone, 1.0);
-        }
+        
 
 
     }

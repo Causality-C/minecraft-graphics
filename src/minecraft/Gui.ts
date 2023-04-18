@@ -45,6 +45,8 @@ export class GUI implements IGUI {
   private SpaceDown: boolean;
   private ShiftLeftDown: boolean;
 
+  private selectedCube: Vec3;
+
   /**
    *
    * @param canvas required to get the width and height of the canvas
@@ -102,9 +104,13 @@ export class GUI implements IGUI {
   }
 
   public dragStart(mouse: MouseEvent): void {
-    this.prevX = mouse.screenX;
-    this.prevY = mouse.screenY;
-    this.dragging = true;
+    if (mouse.buttons == 1) {
+      this.prevX = mouse.screenX;
+      this.prevY = mouse.screenY;
+      this.dragging = true;
+    } else {
+      this.animation.modifyLandscape(this.selectedCube);
+    }
   }
   public dragEnd(mouse: MouseEvent): void {
     this.dragging = false;
@@ -127,6 +133,25 @@ export class GUI implements IGUI {
       this.camera.rotate(new Vec3([0, 1, 0]), -GUI.rotationSpeed * dx);
       this.camera.rotate(this.camera.right(), -GUI.rotationSpeed * dy);
     }
+
+    const mouseNDC = new Vec4([(x/this.width) * 2 - 1, 1 - (y/this.height) * 2, -1, 1]);
+    const mouseProjection = this.projMatrix().inverse().multiplyVec4(mouseNDC);
+    let mouseWorld = this.viewMatrix().inverse().multiplyVec4(mouseProjection);
+    mouseWorld.scale(1 / mouseWorld.w);
+
+    const ray = Vec3.difference(new Vec3(mouseWorld.xyz), this.camera.pos()).normalize();
+    const origin = this.camera.pos();
+    // console.log(ray.xyz, origin.xyz);
+    // Get the next block from the players current position.
+    let t = Config.SELECT_RADIUS;
+    ray.scale(t);
+    const selectedCube = Vec3.sum(origin, ray);
+    this.selectedCube = new Vec3([Math.round(selectedCube.x), Math.round(selectedCube.y), Math.round(selectedCube.z)]);
+    this.animation.updateSelectedCube(this.selectedCube);
+    // console.log(ray.xyz, origin.xyz, selectedBox.xyz, t)
+    // for (let chunkKey in this.animation.chunks) {
+    //   this.animation.chunks[chunkKey].intersection(ray, origin);
+    // }
   }
 
   public walkDir(): Vec3 {
@@ -164,6 +189,10 @@ export class GUI implements IGUI {
       }
       case 'KeyD': {
         this.Ddown = true;
+        break;
+      }
+      case 'KeyH': {
+        this.animation.highlightOn = !this.animation.highlightOn;
         break;
       }
       case 'KeyR': {
