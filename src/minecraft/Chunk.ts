@@ -12,7 +12,7 @@ export class Chunk {
   private y: number;
   private size: number;  // Number of cubes along each side of the chunk
   private heightMap: Float32Array;
-  private densityMap: Object;
+  private densityMap: Object; // Used for 3D perlin noise
   private maxHeight: number = 100;
   private unitVecs: Object;
 
@@ -25,6 +25,7 @@ export class Chunk {
     this.cubes = size * size;
     this.heightMap = new Float32Array(this.size * this.size);
     this.unitVecs = {};
+    // Cube generation logic called on initialization
     this.generateCubes();
     this.highlightedCubePos = 0;
   }
@@ -262,21 +263,7 @@ export class Chunk {
 
     return retArray;
   }
-  // Lookup the number of cubes to draw at a given x y coordinate
-  private numCubesDrawn(arr: Float32Array, i: number, j: number): number {
-    const idx = this.size * i + j;
-    // up
 
-    const idxUp = this.size * (i - 1) + j;
-    const idxDown = this.size * (i + 1) + j;
-    const idxLeft = this.size * i + j - 1;
-    const idxRight = this.size * i + j + 1;
-    const heightNeigh =
-        [arr[idx], arr[idxUp], arr[idxDown], arr[idxLeft], arr[idxRight]];
-    const minNeigh = Math.min(...heightNeigh);
-
-    return Math.floor(arr[idx] - minNeigh + 1);
-  }
   private shouldDrawBasedOnDensity(i: number, j: number, k: number): boolean {
     // TODO: Should be within bounds
     let idx = this.size * i + j;
@@ -385,18 +372,6 @@ export class Chunk {
     return c * 0.5;
   }
 
-  private gen2DZeros(size: number) : number[] {
-    const arr: number[] = [];
-    for (let i = 0; i < size * size; i++) {
-        if (i != Math.floor(size * size / 2)) {
-          arr.push(50);
-        } else {
-          arr.push(51);
-        }
-    }
-    return arr;
-}
-
   private generateCubes() {
     // Coordinate of heightmap's top-left corner
     const topleftx = this.x - this.size / 2;
@@ -422,9 +397,6 @@ export class Chunk {
         return value + something[index];
       });
     }
-
-    // this.heightMap = new Float32Array(this.gen2DZeros(this.size));
-
 
     // Generate density map for chunk
     let densityMap = {};
@@ -505,6 +477,7 @@ export class Chunk {
     }
   }
 
+  // Returns if a cube is in the chunk and highlights it if it is
   public updateSelected(highlightOn: boolean, selectedCube: Vec3): boolean {
     const topleftx = this.x - this.size / 2;
     const toplefty = this.y - this.size / 2;
@@ -557,28 +530,55 @@ export class Chunk {
     } else {
       updatedCubes += 1;
     }
+
     // Copy cube positions into updated array with the selected cube either
     // added or removed
     let updatedPositionsF32 = new Float32Array(4 * updatedCubes);
     let j = 0;
     for (let i = 0; i < this.cubes; ++i) {
+      // If cube is set to be removed, we skip it
       if (removeCube && this.cubePositionsF32[4 * i] == selectedCube.x &&
         this.cubePositionsF32[4 * i + 1] == selectedCube.y &&
         this.cubePositionsF32[4 * i + 2] == selectedCube.z) {
+          // Remove the cube
+          let idx = (selectedCube.x - topleftx) * this.size + (selectedCube.z - toplefty);
+          this.densityMap[idx][selectedCube.y] = -1.0;
+          console.log(idx,this.densityMap[idx]);
           continue;
         }
+        // Else we copy the cube position into the updated array
         updatedPositionsF32[4 * j] = this.cubePositionsF32[4 * i];
         updatedPositionsF32[4 * j + 1] = this.cubePositionsF32[4 * i + 1];
         updatedPositionsF32[4 * j + 2] = this.cubePositionsF32[4 * i + 2];
         updatedPositionsF32[4 * j + 3] = this.cubePositionsF32[4 * i + 3];
         ++j;
     }
+    // We add a new cube
     if (!removeCube) {
       updatedPositionsF32[4 * j] = selectedCube.x;
       updatedPositionsF32[4 * j + 1] = selectedCube.y;
       updatedPositionsF32[4 * j + 2] = selectedCube.z;
       updatedPositionsF32[4 * j + 3] = 3;
       this.highlightedCubePos = j;
+      // Update height map and density map if we add a cube
+      let idx = (selectedCube.x - topleftx) * this.size + (selectedCube.z - toplefty);
+      let height = this.heightMap[idx];
+      console.log(selectedCube.y,height);
+      // This is the case where we add a cube on top of the current height
+      if(selectedCube.y >= height) {
+        // We're building even higher than the current height
+        let densArr = [...this.densityMap[idx]];
+        for(let i = 0; i < selectedCube.y - height; ++i){
+          densArr.push(-1.0);
+        }
+        densArr.push(1.0);
+        this.densityMap[idx] = new Float32Array(densArr);
+        this.heightMap[idx] = densArr.length;
+      }
+      else{
+        this.densityMap[idx][selectedCube.y] = 1.0;
+      }
+      console.log(this.densityMap[idx]);
     }
 
     // Update internal data structures

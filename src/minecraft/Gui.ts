@@ -109,6 +109,7 @@ export class GUI implements IGUI {
       this.prevY = mouse.screenY;
       this.dragging = true;
     } else {
+      // Called whenever mouse 2 is clicked
       this.animation.modifyLandscape(this.selectedCube);
     }
   }
@@ -141,17 +142,13 @@ export class GUI implements IGUI {
 
     const ray = Vec3.difference(new Vec3(mouseWorld.xyz), this.camera.pos()).normalize();
     const origin = this.camera.pos();
-    // console.log(ray.xyz, origin.xyz);
+
     // Get the next block from the players current position.
     let t = Config.SELECT_RADIUS;
     ray.scale(t);
     const selectedCube = Vec3.sum(origin, ray);
     this.selectedCube = new Vec3([Math.round(selectedCube.x), Math.round(selectedCube.y), Math.round(selectedCube.z)]);
     this.animation.updateSelectedCube(this.selectedCube);
-    // console.log(ray.xyz, origin.xyz, selectedBox.xyz, t)
-    // for (let chunkKey in this.animation.chunks) {
-    //   this.animation.chunks[chunkKey].intersection(ray, origin);
-    // }
   }
 
   public walkDir(): Vec3 {

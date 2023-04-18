@@ -16,6 +16,7 @@ export class Config {
 
   public static CHUNK_SIZE: number = 64.0;
 
+  // How far you can select a cube from the player
   public static SELECT_RADIUS: number = 3.0;
 
   // Number of chunks to render outside of the player's chunk
@@ -138,6 +139,8 @@ export class MinecraftAnimation extends CanvasAnimation {
         newChunks[key] = this.cache[key];
       } else {
         newChunks[key] = new Chunk(xCoords[i], zCoords[i], Config.CHUNK_SIZE);
+
+        // When loading chunks, we need to update the chunk's state based on modified blocks
         newChunks[key].updateFromLog(this.modificationLog);
       }
       if (i == Math.floor(((1 + 2 * Config.BORDER_CHUNKS) ** 2) / 2)) {
@@ -260,7 +263,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     if (!Config.CREATIVE_MODE) {
       let position: Vec3 = new Vec3(this.playerPosition.xyz);
       let chunks: Chunk[] = this.collisionChunks(this.playerPosition);
-      position.add(this.gui.walkDir());
+      position.add(this.gui.walkDir().scale(0.5));
       if (!position.equals(this.playerPosition)) {
         let safe: boolean = true;
         for (let i = 0; i < chunks.length; i++) {
@@ -301,7 +304,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       }
       this.gui.getCamera().setPos(this.playerPosition);
     } else {
-      this.playerPosition.add(this.gui.walkDir());
+      this.playerPosition.add(this.gui.walkDir().scale(0.5));
       this.gui.getCamera().setPos(this.playerPosition);
       this.gravityTime = Date.now();
     }
@@ -349,6 +352,7 @@ export class MinecraftAnimation extends CanvasAnimation {
           'aOffset', this.chunks[chunk].cubePositions());
       this.blankCubeRenderPass.drawInstanced(this.chunks[chunk].numCubes());
     }
+    // We draw a sillouette of the selected cube on top of everything else.
     if (this.highlightSelected && this.highlightOn) {
       this.blankCubeRenderPass.updateAttributeBuffer(
         'aOffset', this.selectedCubeF32);
@@ -373,8 +377,9 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.selectedCubeF32[0] = selectedCube.x;
     this.selectedCubeF32[1] = selectedCube.y;
     this.selectedCubeF32[2] = selectedCube.z;
-    this.selectedCubeF32[3] = 2.0;
+    this.selectedCubeF32[3] = 2.0; // We use 2.0 to indicate that the cube should be highlighted, as seen in the shader
 
+    // We globally determine the block selected and if it should be removed (ie with this.removeCube)
     let isRemovingCube = false;
     for (let chunk in this.chunks) {
       isRemovingCube = isRemovingCube || this.chunks[chunk].updateSelected(this.highlightOn, selectedCube);
@@ -391,6 +396,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     let newLog: number[][] = [];
     let cubeInLog = false;
     for (let i = 0; i < this.modificationLog.length; ++i) {
+      // Checks if the cube is already in the log
       if (this.modificationLog[i][0] == x &&
           this.modificationLog[i][1] == y &&
           this.modificationLog[i][2] == z) {
@@ -404,6 +410,8 @@ export class MinecraftAnimation extends CanvasAnimation {
     if (!cubeInLog) {
       newLog.push([x, y, z, this.removeCube ? -1 : 1]);
     }
+
+    // Update log and all chunks
     this.modificationLog = newLog;
     for (let chunk in this.chunks) {
       this.chunks[chunk].updateLandscape(this.removeCube, selectedCube);
