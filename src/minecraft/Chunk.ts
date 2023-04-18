@@ -371,7 +371,7 @@ export class Chunk {
     // Add bias towards lower heights so we dont fall through the ground
     return c * 0.5;
   }
-
+  
   private generateCubes() {
     // Coordinate of heightmap's top-left corner
     const topleftx = this.x - this.size / 2;
@@ -397,7 +397,7 @@ export class Chunk {
         return value + something[index];
       });
     }
-
+    
     // Generate density map for chunk
     let densityMap = {};
     let totalCubes = 0;
@@ -524,17 +524,12 @@ export class Chunk {
           return false;
     }
     // Update number of cubes
-    let updatedCubes = this.cubes;
-    if (removeCube) {
-      updatedCubes -= 1;
-    } else {
-      updatedCubes += 1;
-    }
+    let updatedCubes = this.cubes + (removeCube ? -1 : 1);
 
     // Copy cube positions into updated array with the selected cube either
     // added or removed
     let updatedPositionsF32 = new Float32Array(4 * updatedCubes);
-    let j = 0;
+    let blockIdx = 0;
     for (let i = 0; i < this.cubes; ++i) {
       // If cube is set to be removed, we skip it
       if (removeCube && this.cubePositionsF32[4 * i] == selectedCube.x &&
@@ -547,19 +542,20 @@ export class Chunk {
           continue;
         }
         // Else we copy the cube position into the updated array
-        updatedPositionsF32[4 * j] = this.cubePositionsF32[4 * i];
-        updatedPositionsF32[4 * j + 1] = this.cubePositionsF32[4 * i + 1];
-        updatedPositionsF32[4 * j + 2] = this.cubePositionsF32[4 * i + 2];
-        updatedPositionsF32[4 * j + 3] = this.cubePositionsF32[4 * i + 3];
-        ++j;
+        updatedPositionsF32[4 * blockIdx] = this.cubePositionsF32[4 * i];
+        updatedPositionsF32[4 * blockIdx + 1] = this.cubePositionsF32[4 * i + 1];
+        updatedPositionsF32[4 * blockIdx + 2] = this.cubePositionsF32[4 * i + 2];
+        updatedPositionsF32[4 * blockIdx + 3] = this.cubePositionsF32[4 * i + 3];
+        ++blockIdx;
     }
     // We add a new cube
     if (!removeCube) {
-      updatedPositionsF32[4 * j] = selectedCube.x;
-      updatedPositionsF32[4 * j + 1] = selectedCube.y;
-      updatedPositionsF32[4 * j + 2] = selectedCube.z;
-      updatedPositionsF32[4 * j + 3] = 3;
-      this.highlightedCubePos = j;
+      updatedPositionsF32[4 * blockIdx] = selectedCube.x;
+      updatedPositionsF32[4 * blockIdx + 1] = selectedCube.y;
+      updatedPositionsF32[4 * blockIdx + 2] = selectedCube.z;
+      updatedPositionsF32[4 * blockIdx + 3] = 3;
+
+      this.highlightedCubePos = blockIdx;
       // Update height map and density map if we add a cube
       let idx = (selectedCube.x - topleftx) * this.size + (selectedCube.z - toplefty);
       let height = this.heightMap[idx];
@@ -616,8 +612,9 @@ export class Chunk {
             }
           } else {
             addCubes.push([x, y, z]);
+            updatedCubes += modificationLog[i][3];
           }
-          
+
       }
     }
     if (!modification) {
@@ -628,11 +625,17 @@ export class Chunk {
     // added or removed
     let updatedPositionsF32 = new Float32Array(4 * updatedCubes);
     let j = 0;
+    // Render cubes that are not removed
     for (let i = 0; i < this.cubes; ++i) {
-      const x = this.cubePositionsF32[4 * i];
-      const y = this.cubePositionsF32[4 * i + 1];
-      const z = this.cubePositionsF32[4 * i + 2];
+      let x = this.cubePositionsF32[4 * i];
+      let y = this.cubePositionsF32[4 * i + 1];
+      let z = this.cubePositionsF32[4 * i + 2];
+      // Removed Cubes
       if (x in removeCubes && y in removeCubes[x] && z in removeCubes[x][y]) {
+        // Update collision logic to remove cube
+          let idx = (x - topleftx) * this.size + (z - toplefty);
+          this.densityMap[idx][y] = -1.0;
+          console.log(idx,this.densityMap[idx]);
           continue;
       }
       updatedPositionsF32[4 * j] = this.cubePositionsF32[4 * i];
@@ -641,12 +644,35 @@ export class Chunk {
       updatedPositionsF32[4 * j + 3] = this.cubePositionsF32[4 * i + 3];
       ++j;
     }
+    // Cubes to add
     for (let i = 0; i < addCubes.length; ++i) {
       updatedPositionsF32[4 * j] = addCubes[i][0];
       updatedPositionsF32[4 * j + 1] = addCubes[i][1];
       updatedPositionsF32[4 * j + 2] = addCubes[i][2];
       updatedPositionsF32[4 * j + 3] = 0;
       ++j;
+
+      // Update collision logic to add cube
+      const x = Math.round(addCubes[i][0] - topleftx);
+      const z = Math.round(addCubes[i][2] - toplefty);
+      let idx = x * this.size + z;
+
+      const y = addCubes[i][1];
+      let height = this.heightMap[idx];
+      // This is the case where we add a cube on top of the current height
+      if(y >= height) {
+        // We're building even higher than the current height
+        let densArr = [...this.densityMap[idx]];
+        for(let i = 0; i < y - height; ++i){
+          densArr.push(-1.0);
+        }
+        densArr.push(1.0);
+        this.densityMap[idx] = new Float32Array(densArr);
+        this.heightMap[idx] = densArr.length;
+      }
+      else{
+        this.densityMap[idx][y] = 1.0;
+      }
     }
     // Update internal data structures
     this.cubePositionsF32 = updatedPositionsF32;
