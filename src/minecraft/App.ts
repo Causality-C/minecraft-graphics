@@ -7,6 +7,7 @@ import {RenderPass} from '../lib/webglutils/RenderPass.js';
 import {Chunk} from './Chunk.js';
 import {Cube} from './Cube.js';
 import {GUI} from './Gui.js';
+import { Portal } from './Portal.js';
 import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
 
 export class Config {
@@ -76,6 +77,9 @@ export class MinecraftAnimation extends CanvasAnimation {
   private gravityTime: number;
   private frameTime: number;
 
+  /* Portal Rendering Info */
+  private portals: Portal[];
+
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
 
@@ -104,6 +108,9 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.highlightSelected = false;
     this.highlightOn = false;
     this.modificationLog = [];
+
+    // Portals
+    this.portals = [];
   }
 
   private chunkKey(x: number, z: number): string {
@@ -340,6 +347,13 @@ export class MinecraftAnimation extends CanvasAnimation {
     gl.bindFramebuffer(
         gl.FRAMEBUFFER, null);  // null is the default frame buffer
     this.drawScene(0, 0, 1280, 960);
+
+    // Draw debug information
+    let debugText: string = `Coords: (${this.playerPosition.xyz.map((x) => {return x.toFixed(2);})})`;
+    let debugTextLook: string = `Look: (${this.gui.getCamera().forward().xyz.map((x) => {return x.toFixed(2);})})`;
+    let debugTextBlock: string = `Block: ${this.gui.currentBlock}`
+    let debugElement: HTMLElement = document.getElementById("coords") as HTMLElement;
+    debugElement.innerHTML = debugText + "\n" + debugTextLook + "\n" + debugTextBlock;
   }
 
   private drawScene(x: number, y: number, width: number, height: number): void {
@@ -353,10 +367,15 @@ export class MinecraftAnimation extends CanvasAnimation {
     }
     // We draw a sillouette of the selected cube on top of everything else.
     if (this.highlightSelected && this.highlightOn) {
+      // Draw a portal sillouette if the player is in portal mode
+      if(this.gui.currentBlock == 2){
+        this.selectedCubeF32[3] = 4.0;
+      }
       this.blankCubeRenderPass.updateAttributeBuffer(
         'aOffset', this.selectedCubeF32);
       this.blankCubeRenderPass.drawInstanced(1);
     }
+    // Now we draw the portals if they exist
   }
 
   public getGUI(): GUI {

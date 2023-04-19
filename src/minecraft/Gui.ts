@@ -47,6 +47,9 @@ export class GUI implements IGUI {
 
   private selectedCube: Vec3;
 
+  // We will use this to render different types of blocks
+  public currentBlock: number;
+
   /**
    *
    * @param canvas required to get the width and height of the canvas
@@ -60,6 +63,8 @@ export class GUI implements IGUI {
     this.dragging = false;
 
     this.animation = animation;
+    // Default type of block, the one that is normally rendered at a height
+    this.currentBlock = 1;
 
     this.reset();
 
@@ -172,6 +177,16 @@ export class GUI implements IGUI {
    */
   public onKeydown(key: KeyboardEvent): void {
     switch (key.code) {
+      case 'Digit1':{
+        // Default Block
+        this.currentBlock = 1;
+        break;
+      }
+      case 'Digit2':{
+        // Portal Block
+        this.currentBlock = 2;
+        break;
+      }
       case 'KeyW': {
         this.Wdown = true;
         break;

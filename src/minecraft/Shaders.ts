@@ -170,12 +170,22 @@ export const blankCubeFSText = `
 	    dot_nl = clamp(dot_nl, 0.0, 1.0);
 
         // Highlight logic for the block
-        if (highlight >= 2.0 - epsilon) {
+
+        if(highlight >= 4.0 - epsilon && highlight <= 4.0 + epsilon) {
+            // purple means add a portal block
+            gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
+        }
+        else if (highlight >= 2.0 - epsilon) {
             if (highlight >= 2.0 - epsilon && highlight <= 2.0 + epsilon) { 
-                // Green
+                // Green means add
                 gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-            } else {
-                // Red
+            } 
+            else if(highlight >= 4.0 - epsilon && highlight <= 4.0 + epsilon) {
+                // purple means add a portal block
+                gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
+            }
+            else {
+                // Red means delete
                 gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
             }
         } else {
@@ -195,8 +205,5 @@ export const blankCubeFSText = `
                 gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* stone, 1.0);
             }
         }
-        
-
-
     }
 `;
