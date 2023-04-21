@@ -7,7 +7,7 @@ import {RenderPass} from '../lib/webglutils/RenderPass.js';
 import {Chunk} from './Chunk.js';
 import {Cube} from './Cube.js';
 import {GUI} from './Gui.js';
-import { Portal } from './Portal.js';
+import {Portal} from './Portal.js';
 import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
 
 export class Config {
@@ -78,6 +78,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   private frameTime: number;
 
   /* Portal Rendering Info */
+  private portalRenderPass: RenderPass;
   private portals: Portal[];
 
   constructor(canvas: HTMLCanvasElement) {
@@ -101,7 +102,9 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.blankCubeRenderPass =
         new RenderPass(gl, blankCubeVSText, blankCubeFSText);
     this.cubeGeometry = new Cube();
-    this.initBlankCube();
+    this.initBlankCube(this.blankCubeRenderPass);
+
+
 
     this.lightPosition = new Vec4([-1000, 1000, -1000, 1]);
     this.backgroundColor = new Vec4([0.0, 0.37254903, 0.37254903, 1.0]);
@@ -111,6 +114,9 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     // Portals
     this.portals = [];
+    this.portalRenderPass =
+        new RenderPass(gl, blankCubeVSText, blankCubeFSText);
+    this.initBlankCube(this.portalRenderPass);
   }
 
   private chunkKey(x: number, z: number): string {
@@ -147,7 +153,8 @@ export class MinecraftAnimation extends CanvasAnimation {
       } else {
         newChunks[key] = new Chunk(xCoords[i], zCoords[i], Config.CHUNK_SIZE);
 
-        // When loading chunks, we need to update the chunk's state based on modified blocks
+        // When loading chunks, we need to update the chunk's state based on
+        // modified blocks
         newChunks[key].updateFromLog(this.modificationLog);
       }
       if (i == Math.floor(((1 + 2 * Config.BORDER_CHUNKS) ** 2) / 2)) {
@@ -212,49 +219,48 @@ export class MinecraftAnimation extends CanvasAnimation {
   /**
    * Sets up the blank cube drawing
    */
-  private initBlankCube(): void {
-    this.blankCubeRenderPass.setIndexBufferData(
-        this.cubeGeometry.indicesFlat());
-    this.blankCubeRenderPass.addAttribute(
+  private initBlankCube(renderPass: RenderPass): void {
+    renderPass.setIndexBufferData(this.cubeGeometry.indicesFlat());
+    renderPass.addAttribute(
         'aVertPos', 4, this.ctx.FLOAT, false,
         4 * Float32Array.BYTES_PER_ELEMENT, 0, undefined,
         this.cubeGeometry.positionsFlat());
 
-    this.blankCubeRenderPass.addAttribute(
+    renderPass.addAttribute(
         'aNorm', 4, this.ctx.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT,
         0, undefined, this.cubeGeometry.normalsFlat());
 
-    this.blankCubeRenderPass.addAttribute(
+    renderPass.addAttribute(
         'aUV', 2, this.ctx.FLOAT, false, 2 * Float32Array.BYTES_PER_ELEMENT, 0,
         undefined, this.cubeGeometry.uvFlat());
 
-    this.blankCubeRenderPass.addInstancedAttribute(
+    renderPass.addInstancedAttribute(
         'aOffset', 4, this.ctx.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT,
         0, undefined, new Float32Array(0));
 
-    this.blankCubeRenderPass.addUniform(
+    renderPass.addUniform(
         'uLightPos', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniform4fv(loc, this.lightPosition.xyzw);
         });
-    this.blankCubeRenderPass.addUniform(
+    renderPass.addUniform(
         'uProj', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniformMatrix4fv(
               loc, false, new Float32Array(this.gui.projMatrix().all()));
         });
-    this.blankCubeRenderPass.addUniform(
+    renderPass.addUniform(
         'uView', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniformMatrix4fv(
               loc, false, new Float32Array(this.gui.viewMatrix().all()));
         });
-    this.blankCubeRenderPass.addUniform(
+    renderPass.addUniform(
         'uTime', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniform1f(loc, (Date.now() / 500.0) % (2 * Math.PI));
         });
 
-    this.blankCubeRenderPass.setDrawData(
+    renderPass.setDrawData(
         this.ctx.TRIANGLES, this.cubeGeometry.indicesFlat().length,
         this.ctx.UNSIGNED_INT, 0);
-    this.blankCubeRenderPass.setup();
+    renderPass.setup();
   }
 
   /**
@@ -349,16 +355,26 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.drawScene(0, 0, 1280, 960);
 
     // Draw debug information
-    let debugText: string = `Coords: (${this.playerPosition.xyz.map((x) => {return x.toFixed(2);})})`;
-    let debugTextLook: string = `Look: (${this.gui.getCamera().forward().xyz.map((x) => {return x.toFixed(2);})})`;
+    let debugText: string = `Coords: (${this.playerPosition.xyz.map((x) => {
+      return x.toFixed(2);
+    })})`;
+    let debugTextLook: string =
+        `Look: (${this.gui.getCamera().forward().xyz.map((x) => {
+          return x.toFixed(2);
+        })})`;
     let debugTextBlock: string = `Block: ${this.gui.currentBlock}`
-    let debugElement: HTMLElement = document.getElementById("coords") as HTMLElement;
-    debugElement.innerHTML = debugText + "\n" + debugTextLook + "\n" + debugTextBlock;
+    let debugElement: HTMLElement =
+        document.getElementById('coords') as HTMLElement;
+    debugElement.innerHTML =
+        debugText + '\n' + debugTextLook + '\n' + debugTextBlock;
   }
 
   private drawScene(x: number, y: number, width: number, height: number): void {
     const gl: WebGLRenderingContext = this.ctx;
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
     gl.viewport(x, y, width, height);
+
 
     for (let chunk in this.chunks) {
       this.blankCubeRenderPass.updateAttributeBuffer(
@@ -368,14 +384,29 @@ export class MinecraftAnimation extends CanvasAnimation {
     // We draw a sillouette of the selected cube on top of everything else.
     if (this.highlightSelected && this.highlightOn) {
       // Draw a portal sillouette if the player is in portal mode
-      if(this.gui.currentBlock == 2){
+      if (this.gui.currentBlock == 2) {
         this.selectedCubeF32[3] = 4.0;
       }
       this.blankCubeRenderPass.updateAttributeBuffer(
-        'aOffset', this.selectedCubeF32);
+          'aOffset', this.selectedCubeF32);
       this.blankCubeRenderPass.drawInstanced(1);
     }
+
     // Now we draw the portals if they exist
+    // let portalPositions: number[] = [];
+    // if (this.portals.length !== 0) {
+    //   this.portals[0].blocks.forEach((block: Vec3) => {
+    //     portalPositions.push(block.x + 0.1);
+    //     portalPositions.push(block.y + 0.1);
+    //     portalPositions.push(block.z + 0.1);
+    //     portalPositions.push(5.0);
+    //   })
+    //   let portalPositionsF32: Float32Array = new
+    //   Float32Array(portalPositions);
+    //   this.portalRenderPass.updateAttributeBuffer(
+    //       'aOffset', portalPositionsF32);
+    //   this.portalRenderPass.drawInstanced(this.portals[0].blocks.length);
+    // }
   }
 
   public getGUI(): GUI {
@@ -395,12 +426,20 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.selectedCubeF32[0] = selectedCube.x;
     this.selectedCubeF32[1] = selectedCube.y;
     this.selectedCubeF32[2] = selectedCube.z;
-    this.selectedCubeF32[3] = 2.0; // We use 2.0 to indicate that the cube should be highlighted, as seen in the shader
+    this.selectedCubeF32[3] =
+        2.0;  // We use 2.0 to indicate that the cube should be highlighted, as
+              // seen in the shader
 
-    // We globally determine the block selected and if it should be removed (ie with this.removeCube)
+    // We globally determine the block selected and if it should be removed (ie
+    // with this.removeCube)
     let isRemovingCube = false;
+    let isPortal = this.portals.some(
+        (portal: Portal) => {return portal.blockIn(selectedCube)});
+    console.log(isPortal, selectedCube.xyz);
     for (let chunk in this.chunks) {
-      isRemovingCube = isRemovingCube || this.chunks[chunk].updateSelected(this.highlightOn, selectedCube);
+      isRemovingCube = isRemovingCube ||
+          this.chunks[chunk].updateSelected(
+              this.highlightOn, selectedCube, this.portals[0]);
     }
     this.removeCube = isRemovingCube;
     this.highlightSelected = true;
@@ -415,10 +454,9 @@ export class MinecraftAnimation extends CanvasAnimation {
     let cubeInLog = false;
     for (let i = 0; i < this.modificationLog.length; ++i) {
       // Checks if the cube is already in the log
-      if (this.modificationLog[i][0] == x &&
-          this.modificationLog[i][1] == y &&
+      if (this.modificationLog[i][0] == x && this.modificationLog[i][1] == y &&
           this.modificationLog[i][2] == z) {
-            cubeInLog = true;
+        cubeInLog = true;
       } else {
         newLog.push(this.modificationLog[i]);
       }
@@ -428,7 +466,27 @@ export class MinecraftAnimation extends CanvasAnimation {
     if (!cubeInLog) {
       newLog.push([x, y, z, this.removeCube ? -1 : 1]);
     }
+    // Portal
+    if (this.gui.currentBlock == 2) {
+      // Create a new portal instance
+      if (!this.removeCube) {
+        if (this.portals.length === 0) {
+          let portal = new Portal(selectedCube, new Vec3([1, 1, 1]), 1, 1);
+          this.portals.push(portal);
+        } else {
+          // Loop thorugh all portals and see if the selected cube can be added
+          let canAdd = this.portals.filter((portal) => {
+            return portal.canAdd(selectedCube);
+          });
 
+          // TODO: 2+ Merge portal logic
+          if (canAdd.length === 0) {
+            let portal = new Portal(selectedCube, new Vec3([1, 1, 1]), 1, 1);
+            this.portals.push(portal);
+          }
+        }
+      }
+    }
     // Update log and all chunks
     this.modificationLog = newLog;
     for (let chunk in this.chunks) {

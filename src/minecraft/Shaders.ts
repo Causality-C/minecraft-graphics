@@ -171,11 +171,8 @@ export const blankCubeFSText = `
 
         // Highlight logic for the block
 
-        if(highlight >= 4.0 - epsilon && highlight <= 4.0 + epsilon) {
-            // purple means add a portal block
-            gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
-        }
-        else if (highlight >= 2.0 - epsilon) {
+        
+        if (highlight >= 2.0 - epsilon) {
             if (highlight >= 2.0 - epsilon && highlight <= 2.0 + epsilon) { 
                 // Green means add
                 gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
@@ -188,7 +185,8 @@ export const blankCubeFSText = `
                 // Red means delete
                 gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
             }
-        } else {
+        } 
+        else {
             // Lava/Magma only generates on low locations
             if(wsPos.y < 20.5) {
                 vec3 magma = perlinMagma(uv, seed);
@@ -204,6 +202,11 @@ export const blankCubeFSText = `
                 vec3 stone = perlinStone(uv, seed);
                 gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* stone, 1.0);
             }
+        }
+        
+        if(highlight == 5.0) {
+            // blue means add a portal block
+            gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
         }
     }
 `;
