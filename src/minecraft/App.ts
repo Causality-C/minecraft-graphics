@@ -435,11 +435,11 @@ export class MinecraftAnimation extends CanvasAnimation {
     let isRemovingCube = false;
     let isPortal = this.portals.some(
         (portal: Portal) => {return portal.blockIn(selectedCube)});
-    console.log(isPortal, selectedCube.xyz);
+    // console.log(isPortal, selectedCube.xyz);
     for (let chunk in this.chunks) {
       isRemovingCube = isRemovingCube ||
           this.chunks[chunk].updateSelected(
-              this.highlightOn, selectedCube, this.portals[0]);
+              this.highlightOn, selectedCube, isPortal, this.portals);
     }
     this.removeCube = isRemovingCube;
     this.highlightSelected = true;
@@ -475,14 +475,70 @@ export class MinecraftAnimation extends CanvasAnimation {
           this.portals.push(portal);
         } else {
           // Loop thorugh all portals and see if the selected cube can be added
-          let canAdd = this.portals.filter((portal) => {
-            return portal.canAdd(selectedCube);
-          });
+          const portalsToMerge: number[] = [];
+          for (let i = 0; i < this.portals.length; ++i) {
+            if (this.portals[i].canAdd(selectedCube)) {
+              portalsToMerge.push(i);
+            }
+          }
 
-          // TODO: 2+ Merge portal logic
-          if (canAdd.length === 0) {
+          // Either add a new portal or merge existing ones
+          if (portalsToMerge.length === 0) {
             let portal = new Portal(selectedCube, new Vec3([1, 1, 1]), 1, 1);
             this.portals.push(portal);
+          } else if (portalsToMerge.length === 1) {
+            this.portals[portalsToMerge[0]].addBlock(selectedCube);
+          } else {
+            const portal = this.portals[portalsToMerge[0]];
+            for (let i = portalsToMerge.length - 1; i > 0 ; --i) {
+              portal.merge(this.portals[portalsToMerge[i]].blocks);
+              this.portals.splice(portalsToMerge[i], 1);
+
+            }
+            portal.addBlock(selectedCube);
+          }
+        }
+      } else {
+        let removePortalIdx = -1;
+        // Determine if we need to remove a portal or deactivate a connection
+        for (let i = 0; i < this.portals.length; ++i) {
+          let partitions = this.portals[i].removeCube(selectedCube);
+          if (partitions.length === 0) {
+            removePortalIdx = i;
+          }  else if (!this.portals[i].activePortal()) {
+            const outlet = this.portals[i].outlet;
+            if (outlet !== null) {
+              outlet.setOutlet(null);
+            }
+            this.portals[i].setOutlet(null);
+          }
+
+          // Create new portal objects if portal was partitioned
+          for (let i = 1; i < partitions.length; ++i) {
+            let portal = new Portal(partitions[i][0], new Vec3([1, 1, 1]), 1, 1);
+            portal.merge(partitions[i].slice(1));
+            this.portals.push(portal);
+          }
+        }
+        // Remove the portal and deactivate the connection
+        if (removePortalIdx > 0) {
+          const portalToRemove = this.portals[removePortalIdx];
+          if (portalToRemove.outlet !== null) {
+            portalToRemove.outlet.setOutlet(null);
+          }
+          this.portals.splice(removePortalIdx, 1);
+        }
+      }
+      // Connect portals by activation time
+      let lastActivePortalIdx = -1;
+      for (let i = 0; i < this.portals.length; ++i) {
+        if (this.portals[i].activePortal() && this.portals[i].outlet === null) {
+          if (lastActivePortalIdx === -1) {
+            lastActivePortalIdx = i;
+          } else {
+            this.portals[i].setOutlet(this.portals[lastActivePortalIdx]);
+            this.portals[lastActivePortalIdx].setOutlet(this.portals[i]);
+            lastActivePortalIdx = -1;
           }
         }
       }
@@ -490,7 +546,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     // Update log and all chunks
     this.modificationLog = newLog;
     for (let chunk in this.chunks) {
-      this.chunks[chunk].updateLandscape(this.removeCube, selectedCube);
+      this.chunks[chunk].updateLandscape(this.removeCube, selectedCube, this.portals);
     }
     this.removeCube = !this.removeCube;
   }

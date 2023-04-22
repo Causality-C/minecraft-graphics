@@ -177,7 +177,7 @@ export const blankCubeFSText = `
                 // Green means add
                 gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
             } 
-            else if(highlight >= 4.0 - epsilon && highlight <= 4.0 + epsilon) {
+            else if(highlight >= 4.0 - epsilon) {
                 // purple means add a portal block
                 gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
             }
@@ -204,9 +204,9 @@ export const blankCubeFSText = `
             }
         }
         
-        if(highlight == 5.0) {
-            // blue means add a portal block
-            gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
-        }
+        // if(highlight == 5.0) {
+        //     // blue means add a portal block
+        //     gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+        // }
     }
 `;

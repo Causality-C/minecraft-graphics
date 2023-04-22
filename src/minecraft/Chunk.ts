@@ -483,7 +483,7 @@ export class Chunk {
 
   // Returns if a cube is in the chunk and highlights it if it is
   public updateSelected(
-      highlightOn: boolean, selectedCube: Vec3, portals: Portal): boolean {
+      highlightOn: boolean, selectedCube: Vec3, isPortal: boolean, portals: Portal[]): boolean {
     // Is this a portal block?
 
     // Reset the previously highlighted box
@@ -498,11 +498,12 @@ export class Chunk {
 
     if (this.highlightedCubePos < this.cubes) {
       this.cubePositionsF32[4 * this.highlightedCubePos + 3] = 0.0;
+      for (let i = 0; i < portals.length; ++i) {
+        if (portals[i].blockIn(highlightBlock)) {
+          this.cubePositionsF32[4 * this.highlightedCubePos + 3] = 5.0;
+        }
+      }
     }
-    if (portals.blockIn(highlightBlock)) {
-      this.cubePositionsF32[4 * this.highlightedCubePos + 3] = 5.0;
-    }
-
     // Do not highlight if highlighting is turned off
     if (!highlightOn) {
       return false;
@@ -518,13 +519,16 @@ export class Chunk {
           this.cubePositionsF32[4 * i + 2] == selectedCube.z) {
         this.cubePositionsF32[4 * i + 3] = 3;  // Highlight
         this.highlightedCubePos = i;
+        if (selectedCube) {
+          this.cubePositionsF32[4 * i + 3] = 5;
+        }
         return true;
       }
     }
     return false;
   }
 
-  public updateLandscape(removeCube: boolean, selectedCube: Vec3) {
+  public updateLandscape(removeCube: boolean, selectedCube: Vec3, portals: Portal[]) {
     // See if the selected box is in the current chunk
     if (!this.isInChunkBounds(selectedCube.x, selectedCube.z)) {
       return false;
@@ -560,8 +564,13 @@ export class Chunk {
       updatedPositionsF32[4 * blockIdx] = selectedCube.x;
       updatedPositionsF32[4 * blockIdx + 1] = selectedCube.y;
       updatedPositionsF32[4 * blockIdx + 2] = selectedCube.z;
-      updatedPositionsF32[4 * blockIdx + 3] = 5.0;
-      console.log('FILLING');
+      updatedPositionsF32[4 * blockIdx + 3] = 0.0;
+      for (let i = 0; i < portals.length; ++i) {
+        if (portals[i].blockIn(selectedCube)) {
+          this.cubePositionsF32[4 * blockIdx + 3] = 5.0;
+        }
+      }
+      // console.log('FILLING');
 
       this.highlightedCubePos = blockIdx;
       // Update height map and density map if we add a cube
