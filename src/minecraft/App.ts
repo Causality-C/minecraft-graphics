@@ -7,8 +7,8 @@ import {RenderPass} from '../lib/webglutils/RenderPass.js';
 import {Chunk} from './Chunk.js';
 import {Cube} from './Cube.js';
 import {GUI} from './Gui.js';
-import {Portal} from './Portal.js';
-import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
+import {Portal, PortalMesh} from './Portal.js';
+import {blankCubeFSText, blankCubeVSText, portalMeshVSText, portalMeshFSText} from './Shaders.js';
 
 export class Config {
   public static PLAYER_RADIUS: number = 0.4;
@@ -80,6 +80,23 @@ export class MinecraftAnimation extends CanvasAnimation {
   /* Portal Rendering Info */
   private portalRenderPass: RenderPass;
   private portals: Portal[];
+  private portalProgram: WebGLProgram;
+  private portalVAO: WebGLVertexArrayObject;
+
+  /* portal Buffers */
+  private portalPosBuffer: WebGLBuffer = -1;
+  private portalIndexBuffer: WebGLBuffer = -1;
+  private portalNormBuffer: WebGLBuffer = -1;
+
+  /* portal Attribute Locations */
+  private portalPosAttribLoc: GLint = -1;
+  private portalNormAttribLoc: GLint = -1;
+
+  /* portal Uniform Locations */
+  private portalWorldUniformLocation: WebGLUniformLocation = -1;
+  private portalViewUniformLocation: WebGLUniformLocation = -1;
+  private portalProjUniformLocation: WebGLUniformLocation = -1;
+  private portalLightUniformLocation: WebGLUniformLocation = -1;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -116,7 +133,11 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.portals = [];
     this.portalRenderPass =
         new RenderPass(gl, blankCubeVSText, blankCubeFSText);
-    this.initBlankCube(this.portalRenderPass);
+    // this.initBlankCube(this.portalRenderPass);
+    const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new Vec3([0, 0, 100]), new Vec3([100, 0, 0]))
+    this.portalRenderPass =
+        new RenderPass(gl, portalMeshVSText, portalMeshFSText);
+    this.initPortalMesh(this.portalRenderPass, portalMesh);
   }
 
   private chunkKey(x: number, z: number): string {
@@ -263,6 +284,47 @@ export class MinecraftAnimation extends CanvasAnimation {
     renderPass.setup();
   }
 
+
+  /**
+   * Initialize the portal sponge data structure
+   */
+  private initPortalMesh(renderPass: RenderPass, portalMesh: PortalMesh): void {    
+    renderPass.setIndexBufferData(portalMesh.indicesFlat());
+    renderPass.addAttribute(
+        'aVertPos', 4, this.ctx.FLOAT, false,
+        4 * Float32Array.BYTES_PER_ELEMENT, 0, undefined,
+        portalMesh.positionsFlat());
+
+    renderPass.addAttribute(
+        'aNorm', 4, this.ctx.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT,
+        0, undefined, portalMesh.normalsFlat());
+
+    renderPass.addAttribute(
+        'aUV', 2, this.ctx.FLOAT, false, 2 * Float32Array.BYTES_PER_ELEMENT, 0,
+        undefined, portalMesh.uvFlat());
+
+    renderPass.addUniform(
+        'uLightPos', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniform4fv(loc, this.lightPosition.xyzw);
+        });
+    renderPass.addUniform(
+        'uProj', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniformMatrix4fv(
+              loc, false, new Float32Array(this.gui.projMatrix().all()));
+        });
+    renderPass.addUniform(
+        'uView', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniformMatrix4fv(
+              loc, false, new Float32Array(this.gui.viewMatrix().all()));
+        });
+
+    renderPass.setDrawData(
+        this.ctx.TRIANGLES, portalMesh.indicesFlat().length,
+        this.ctx.UNSIGNED_INT, 0);
+    renderPass.setup();
+  }
+
+
   /**
    * Draws a single frame
    *
@@ -391,6 +453,9 @@ export class MinecraftAnimation extends CanvasAnimation {
           'aOffset', this.selectedCubeF32);
       this.blankCubeRenderPass.drawInstanced(1);
     }
+
+    // const portalMesh = new PortalMesh(new Vec3([-32, 50, -32]), new Vec3([0, 0, 64]), new Vec3([64, 0, 64]))
+    this.portalRenderPass.draw();
 
     // Now we draw the portals if they exist
     // let portalPositions: number[] = [];

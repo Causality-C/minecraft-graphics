@@ -210,3 +210,39 @@ export const blankCubeFSText = `
         // }
     }
 `;
+
+export let portalMeshVSText = `
+    precision mediump float;
+
+    uniform vec4 uLightPos;
+    uniform mat4 uView;
+    uniform mat4 uProj;
+
+    attribute vec4 aNorm;
+    attribute vec4 aVertPos;
+    attribute vec2 aUV;
+
+    varying vec4 normal;
+    varying vec2 uv;
+
+    varying highp float directional;
+
+    void main () {
+		//  Convert vertex to camera coordinates and the NDC
+        gl_Position = uProj * uView * aVertPos;
+        normal = normalize(aNorm);
+        uv = aUV;
+    }
+`;
+
+export let portalMeshFSText = `
+    precision mediump float;
+
+    varying vec4 normal;
+    varying vec2 uv;    
+	
+    varying highp float directional;
+    void main () {
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    }
+`;
