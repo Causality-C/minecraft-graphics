@@ -134,7 +134,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.portalRenderPass =
         new RenderPass(gl, blankCubeVSText, blankCubeFSText);
     // this.initBlankCube(this.portalRenderPass);
-    const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new Vec3([0, 0, 100]), new Vec3([100, 0, 0]))
+    const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new Vec3([0, 0, 100]), new Vec3([100, 0, 0]), new Vec3([0, 1, 0]))
     this.portalRenderPass =
         new RenderPass(gl, portalMeshVSText, portalMeshFSText);
     this.initPortalMesh(this.portalRenderPass, portalMesh);
@@ -446,16 +446,27 @@ export class MinecraftAnimation extends CanvasAnimation {
     // We draw a sillouette of the selected cube on top of everything else.
     if (this.highlightSelected && this.highlightOn) {
       // Draw a portal sillouette if the player is in portal mode
-      if (this.gui.currentBlock == 2) {
-        this.selectedCubeF32[3] = 4.0;
-      }
+      // if (this.gui.currentBlock == 2) {
+      //   this.selectedCubeF32[3] = 4.0;
+      // }
       this.blankCubeRenderPass.updateAttributeBuffer(
           'aOffset', this.selectedCubeF32);
       this.blankCubeRenderPass.drawInstanced(1);
     }
 
-    // const portalMesh = new PortalMesh(new Vec3([-32, 50, -32]), new Vec3([0, 0, 64]), new Vec3([64, 0, 64]))
-    this.portalRenderPass.draw();
+    for (let i = 0; i < this.portals.length; ++i) {
+      if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
+        
+        this.portalRenderPass.updateAttributeBuffer(
+          'aVertPos', this.portals[i].portalMesh.positionsFlat());
+        this.portalRenderPass.updateAttributeBuffer(
+          'aNorm', this.portals[i].portalMesh.normalsFlat());
+        this.portalRenderPass.draw();
+      }
+    }
+    // this.portalRenderPass.draw();
+    // const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new Vec3([0, 0, 100]), new Vec3([100, 0, 0]))
+    // this.portalRenderPass.draw();
 
     // Now we draw the portals if they exist
     // let portalPositions: number[] = [];
@@ -507,6 +518,10 @@ export class MinecraftAnimation extends CanvasAnimation {
               this.highlightOn, selectedCube, isPortal, this.portals);
     }
     this.removeCube = isRemovingCube;
+    if (this.removeCube) {
+      this.selectedCubeF32[3] =
+        3.0;
+    }
     this.highlightSelected = true;
   }
 
@@ -549,11 +564,14 @@ export class MinecraftAnimation extends CanvasAnimation {
 
           // Either add a new portal or merge existing ones
           if (portalsToMerge.length === 0) {
+            
             let portal = new Portal(selectedCube, new Vec3([1, 1, 1]), 1, 1);
             this.portals.push(portal);
           } else if (portalsToMerge.length === 1) {
+            
             this.portals[portalsToMerge[0]].addBlock(selectedCube);
           } else {
+            
             const portal = this.portals[portalsToMerge[0]];
             for (let i = portalsToMerge.length - 1; i > 0 ; --i) {
               portal.merge(this.portals[portalsToMerge[i]].blocks);
@@ -562,6 +580,7 @@ export class MinecraftAnimation extends CanvasAnimation {
             }
             portal.addBlock(selectedCube);
           }
+          
         }
       } else {
         let removePortalIdx = -1;
@@ -601,6 +620,7 @@ export class MinecraftAnimation extends CanvasAnimation {
           if (lastActivePortalIdx === -1) {
             lastActivePortalIdx = i;
           } else {
+            
             this.portals[i].setOutlet(this.portals[lastActivePortalIdx]);
             this.portals[lastActivePortalIdx].setOutlet(this.portals[i]);
             lastActivePortalIdx = -1;

@@ -519,9 +519,9 @@ export class Chunk {
           this.cubePositionsF32[4 * i + 2] == selectedCube.z) {
         this.cubePositionsF32[4 * i + 3] = 3;  // Highlight
         this.highlightedCubePos = i;
-        if (selectedCube) {
-          this.cubePositionsF32[4 * i + 3] = 5;
-        }
+        // if (selectedCube) {
+        //   this.cubePositionsF32[4 * i + 3] = 5;
+        // }
         return true;
       }
     }
