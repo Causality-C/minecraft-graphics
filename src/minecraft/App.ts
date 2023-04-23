@@ -382,6 +382,14 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.gui.getCamera().setPos(this.playerPosition);
       this.gravityTime = Date.now();
     }
+    // Handlle portal teleportation
+    for (let i = 0; i < this.portals.length; ++i) {
+      if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
+        if (this.portals[i].intersects(this.playerPosition)) {
+          this.playerPosition = this.portals[i].getPortalTeleportPosition(this.playerPosition);
+        }
+      }
+    }
 
     let ellipseCenter: Vec4 =
         new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);

@@ -1,5 +1,6 @@
 import {Vec3, Vec4} from '../lib/TSM.js';
 import {Camera} from '../lib/webglutils/Camera';
+import { Config } from './App.js';
 
 
 // Creates a two dimensional rectangular portal
@@ -12,7 +13,9 @@ export class Portal {
   public blocks: Vec3[];  // Coordinates of blocks that are part of the portal
 
   private generatePortal: boolean;  // Determines whether portal can be activated
-  public portalMesh: PortalMesh;
+  public portalMesh: PortalMesh;    // Portal mesh
+  private portalCubeLoc: Vec3;
+  private differential: Vec3;
 
 
   constructor(position: Vec3, normal: Vec3, width: number, height: number) {
@@ -25,8 +28,12 @@ export class Portal {
     this.generatePortal = false;
   }
 
-  public getPortalTeleportPosition(): Vec3 {
-    return this.outlet ? this.outlet.position : this.position;
+  public getPortalTeleportPosition(pos: Vec3): Vec3 {
+    if (this.outlet === null) {
+      return pos;
+    }
+    const normal = this.outlet.normal;
+    return new Vec3([this.outlet.position.x + normal.x, this.outlet.position.y + normal.y + Config.PLAYER_HEIGHT, this.outlet.position.z + normal.z])
   }
 
   // Given position of player, find distance to portal
@@ -35,6 +42,28 @@ export class Portal {
   }
   // Given position of player, is player inside portal?
   public intersects(position: Vec3): boolean {
+    // Portal not activated
+    if (!this.generatePortal || this.outlet === null || this.portalMesh == null) {
+      return false;
+    }
+    const topLeft = new Vec3([Math.min(this.portalCubeLoc.x, this.portalCubeLoc.x + this.differential.x),
+                              Math.min(this.portalCubeLoc.y, this.portalCubeLoc.y + this.differential.y),
+                              Math.min(this.portalCubeLoc.z, this.portalCubeLoc.z + this.differential.z)])
+    const bottomRight = new Vec3([Math.max(this.portalCubeLoc.x, this.portalCubeLoc.x + this.differential.x),
+                                  Math.max(this.portalCubeLoc.y, this.portalCubeLoc.y + this.differential.y),
+                                  Math.max(this.portalCubeLoc.z, this.portalCubeLoc.z + this.differential.z)])
+    // Below or above portal
+    if (position.y < topLeft.y ||
+        position.y - Config.PLAYER_HEIGHT > bottomRight.y) {
+      return false;
+    }
+    // Out of bounds of portal
+    if (position.x + Config.PLAYER_RADIUS < topLeft.x ||
+        position.x - Config.PLAYER_RADIUS > bottomRight.x ||
+        position.z + Config.PLAYER_RADIUS < topLeft.z ||
+        position.z - Config.PLAYER_RADIUS > bottomRight.z) {
+      return false;
+    }
     return true;
   }
 
@@ -235,8 +264,12 @@ export class Portal {
       axis2 = new Vec3([0, 0, bottomRight.z - topLeft.z - 1]);
       axis3 = new Vec3([0, -1, 0]);
     }
+    this.portalCubeLoc = corner;
+    this.differential = Vec3.sum(Vec3.sum(axis1, axis2), axis3);
+    this.normal = Vec3.cross(axis1, axis2);
+    this.normal.normalize();
+    this.normal.scale(Config.PLAYER_RADIUS);
     // Create mesh
-    
     this.portalMesh = new PortalMesh(corner, axis1, axis2, axis3);
   }
 
