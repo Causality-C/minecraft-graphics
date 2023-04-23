@@ -239,10 +239,12 @@ export let portalMeshFSText = `
     precision mediump float;
 
     varying vec4 normal;
-    varying vec2 uv;    
+    varying vec2 uv;  
+    uniform sampler2D uSampler;  
 	
     varying highp float directional;
     void main () {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        // gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        gl_FragColor = texture2D(uSampler, uv);
     }
 `;

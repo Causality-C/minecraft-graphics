@@ -131,10 +131,8 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     // Portals
     this.portals = [];
-    this.portalRenderPass =
-        new RenderPass(gl, blankCubeVSText, blankCubeFSText);
     // this.initBlankCube(this.portalRenderPass);
-    const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new Vec3([0, 0, 100]), new Vec3([100, 0, 0]), new Vec3([0, 1, 0]))
+    const portalMesh = new PortalMesh(new Vec3([-50, 0, -50]), new Vec3([0, 100, 0]), new Vec3([100, 0, 0]), new Vec3([0, 0, 1]))
     this.portalRenderPass =
         new RenderPass(gl, portalMeshVSText, portalMeshFSText);
     this.initPortalMesh(this.portalRenderPass, portalMesh);
@@ -440,7 +438,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   }
 
   private drawScene(x: number, y: number, width: number, height: number): void {
-    const gl: WebGLRenderingContext = this.ctx;
+    const gl = this.ctx;
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.viewport(x, y, width, height);
@@ -472,7 +470,8 @@ export class MinecraftAnimation extends CanvasAnimation {
         this.portalRenderPass.draw();
       }
     }
-    // this.portalRenderPass.draw();
+
+    this.portalRenderPass.draw();
     // const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new Vec3([0, 0, 100]), new Vec3([100, 0, 0]))
     // this.portalRenderPass.draw();
 

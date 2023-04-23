@@ -355,13 +355,13 @@ export class PortalMesh {
       /* Top */
       new Vec3([0.0, 0.0, 0.0]),
       new Vec3([0.0, 1.0, 0.0]),
-      new Vec3([1.0, 1.0, 0.0]),
       new Vec3([1.0, 0.0, 0.0]),
+      new Vec3([1.0, 1.0, 0.0]),
       /* Back */
       new Vec3([0.0, 0.0, 0.0]),
       new Vec3([0.0, 1.0, 0.0]),
-      new Vec3([1.0, 1.0, 0.0]),
       new Vec3([1.0, 0.0, 0.0]),
+      new Vec3([1.0, 1.0, 0.0]),
     ]
     
     
