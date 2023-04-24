@@ -402,6 +402,7 @@ export class Chunk {
       });
     }
 
+
     // Generate density map for chunk
     let densityMap = {};
     let totalCubes = 0;

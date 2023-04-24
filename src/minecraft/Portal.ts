@@ -55,6 +55,7 @@ export class Portal {
     // Below or above portal
     if (position.y < topLeft.y ||
         position.y - Config.PLAYER_HEIGHT > bottomRight.y) {
+      console.log("Below or above:", position.xyz, topLeft.xyz, bottomRight.xyz);
       return false;
     }
     // Out of bounds of portal
@@ -62,8 +63,10 @@ export class Portal {
         position.x - Config.PLAYER_RADIUS > bottomRight.x ||
         position.z + Config.PLAYER_RADIUS < topLeft.z ||
         position.z - Config.PLAYER_RADIUS > bottomRight.z) {
+      console.log("Out of bounds", position.xyz, topLeft.xyz, bottomRight.xyz);
       return false;
     }
+    console.log("Intersection!")
     return true;
   }
 

@@ -438,7 +438,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   }
 
   private drawScene(x: number, y: number, width: number, height: number): void {
-    const gl = this.ctx;
+    const gl: WebGLRenderingContext = this.ctx;
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.viewport(x, y, width, height);
@@ -470,8 +470,7 @@ export class MinecraftAnimation extends CanvasAnimation {
         this.portalRenderPass.draw();
       }
     }
-
-    this.portalRenderPass.draw();
+    // this.portalRenderPass.draw();
     // const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new Vec3([0, 0, 100]), new Vec3([100, 0, 0]))
     // this.portalRenderPass.draw();
 
@@ -620,6 +619,7 @@ export class MinecraftAnimation extends CanvasAnimation {
           this.portals.splice(removePortalIdx, 1);
         }
       }
+      console.log(this.portals);
       // Connect portals by activation time
       let lastActivePortalIdx = -1;
       for (let i = 0; i < this.portals.length; ++i) {
@@ -627,7 +627,7 @@ export class MinecraftAnimation extends CanvasAnimation {
           if (lastActivePortalIdx === -1) {
             lastActivePortalIdx = i;
           } else {
-            
+            console.log("Connecting portals", lastActivePortalIdx, "and", i)
             this.portals[i].setOutlet(this.portals[lastActivePortalIdx]);
             this.portals[lastActivePortalIdx].setOutlet(this.portals[i]);
             lastActivePortalIdx = -1;
