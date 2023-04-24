@@ -1,6 +1,8 @@
 import {Vec3, Vec4} from '../lib/TSM.js';
-import {Camera} from '../lib/webglutils/Camera';
+import {Camera} from '../lib/webglutils/Camera.js';
+import { RenderPass } from '../lib/webglutils/RenderPass.js';
 import { Config } from './App.js';
+import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
 
 
 // Creates a two dimensional rectangular portal
@@ -16,6 +18,8 @@ export class Portal {
   public portalMesh: PortalMesh;    // Portal mesh
   private portalCubeLoc: Vec3;
   private differential: Vec3;
+  public portalCamera: Camera;
+  public portalRenderPass: RenderPass;
 
 
   constructor(position: Vec3, normal: Vec3, width: number, height: number) {
@@ -55,7 +59,6 @@ export class Portal {
     // Below or above portal
     if (position.y < topLeft.y ||
         position.y - Config.PLAYER_HEIGHT > bottomRight.y) {
-      console.log("Below or above:", position.xyz, topLeft.xyz, bottomRight.xyz);
       return false;
     }
     // Out of bounds of portal
@@ -63,10 +66,8 @@ export class Portal {
         position.x - Config.PLAYER_RADIUS > bottomRight.x ||
         position.z + Config.PLAYER_RADIUS < topLeft.z ||
         position.z - Config.PLAYER_RADIUS > bottomRight.z) {
-      console.log("Out of bounds", position.xyz, topLeft.xyz, bottomRight.xyz);
       return false;
     }
-    console.log("Intersection!")
     return true;
   }
 
@@ -235,9 +236,9 @@ export class Portal {
     return blocks;
   }
 
-  public setOutlet(portal2: null|Portal) {
+  public setOutlet(portal2: null|Portal, gl) {
     this.outlet = portal2;
-    if (this.outlet === null) {
+    if (portal2 == null || this.outlet === null) {
       return;
     }
     // Get mesh corner and axis
@@ -274,6 +275,17 @@ export class Portal {
     this.normal.scale(Config.PLAYER_RADIUS);
     // Create mesh
     this.portalMesh = new PortalMesh(corner, axis1, axis2, axis3);
+    // Set camera portal
+    const pos = portal2.position;
+    const up = axis1;
+    const look = Vec3.cross(axis1, axis2);
+    up.normalize();
+    look.normalize();
+    this.portalCamera = new Camera(
+      pos, Vec3.sum(pos, look), up, 45,
+      gl.drawingBufferWidth / gl.drawingBufferHeight, 0.1, 1000.0);
+    // Set up render pass
+    this.portalRenderPass = new RenderPass(gl, blankCubeVSText, blankCubeFSText);
   }
 
   public activePortal() {

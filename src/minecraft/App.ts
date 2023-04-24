@@ -494,9 +494,7 @@ export class MinecraftAnimation extends CanvasAnimation {
         debugText + '\n' + debugTextLook + '\n' + debugTextBlock;
   }
 
-  private drawScene(x: number, y: number, width: number, height: number): void {
-    const gl: WebGLRenderingContext = this.ctx;
-    // Use an offscreen buffer to compute the portal's perspective
+  private renderPortalView(gl, x: number, y: number, width: number, height: number, portal: Portal) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.secondBuffer);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
@@ -506,12 +504,11 @@ export class MinecraftAnimation extends CanvasAnimation {
     gl.enable(gl.DEPTH_TEST);
     gl.frontFace(gl.CCW);
     gl.cullFace(gl.BACK);
-
     for (let chunk in this.chunks) {
       // Compute the render the portal's perspective also
-      this.portalPerspectiveRP.updateAttributeBuffer(
+      portal.portalRenderPass.updateAttributeBuffer(
           'aOffset', this.chunks[chunk].cubePositions());
-      this.portalPerspectiveRP.drawInstanced(this.chunks[chunk].numCubes());
+      portal.portalRenderPass.drawInstanced(this.chunks[chunk].numCubes());
     }
 
     // Move portal's perspective to the buffer
@@ -520,7 +517,14 @@ export class MinecraftAnimation extends CanvasAnimation {
     // We do the computation and feed this texture into portals -- TODO: see
     // Now use default frame buffer to draw the scene
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
 
+  private drawScene(x: number, y: number, width: number, height: number): void {
+    const gl: WebGLRenderingContext = this.ctx;
+
+    // We do the computation and feed this texture into portals -- TODO: see
+    // Now use default frame buffer to draw the scene
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     for (let chunk in this.chunks) {
       this.blankCubeRenderPass.updateAttributeBuffer(
@@ -540,7 +544,7 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     for (let i = 0; i < this.portals.length; ++i) {
       if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
-        
+        this.renderPortalView(gl, x, y, width, height, this.portals[i]);
         this.portalRenderPass.updateAttributeBuffer(
           'aVertPos', this.portals[i].portalMesh.positionsFlat());
         this.portalRenderPass.updateAttributeBuffer(
@@ -548,6 +552,7 @@ export class MinecraftAnimation extends CanvasAnimation {
         this.portalRenderPass.draw();
       }
     }
+
     // this.portalRenderPass.draw();
     // const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new Vec3([0, 0, 100]), new Vec3([100, 0, 0]))
     // this.portalRenderPass.draw();
@@ -676,9 +681,9 @@ export class MinecraftAnimation extends CanvasAnimation {
           }  else if (!this.portals[i].activePortal()) {
             const outlet = this.portals[i].outlet;
             if (outlet !== null) {
-              outlet.setOutlet(null);
+              outlet.setOutlet(null, this.ctx);
             }
-            this.portals[i].setOutlet(null);
+            this.portals[i].setOutlet(null, this.ctx);
           }
 
           // Create new portal objects if portal was partitioned
@@ -692,12 +697,11 @@ export class MinecraftAnimation extends CanvasAnimation {
         if (removePortalIdx > 0) {
           const portalToRemove = this.portals[removePortalIdx];
           if (portalToRemove.outlet !== null) {
-            portalToRemove.outlet.setOutlet(null);
+            portalToRemove.outlet.setOutlet(null, this.ctx);
           }
           this.portals.splice(removePortalIdx, 1);
         }
       }
-      console.log(this.portals);
       // Connect portals by activation time
       let lastActivePortalIdx = -1;
       for (let i = 0; i < this.portals.length; ++i) {
@@ -706,8 +710,11 @@ export class MinecraftAnimation extends CanvasAnimation {
             lastActivePortalIdx = i;
           } else {
             console.log("Connecting portals", lastActivePortalIdx, "and", i)
-            this.portals[i].setOutlet(this.portals[lastActivePortalIdx]);
-            this.portals[lastActivePortalIdx].setOutlet(this.portals[i]);
+            const gl = this.ctx;
+            this.portals[i].setOutlet(this.portals[lastActivePortalIdx], this.ctx);
+            this.portals[lastActivePortalIdx].setOutlet(this.portals[i], this.ctx);
+            this.initBlankCube(this.portals[i].portalRenderPass, this.portals[i].portalCamera);
+            this.initBlankCube(this.portals[lastActivePortalIdx].portalRenderPass, this.portals[lastActivePortalIdx].portalCamera);
             lastActivePortalIdx = -1;
           }
         }
