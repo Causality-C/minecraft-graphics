@@ -181,6 +181,7 @@ export class Portal {
         return false;
       }
     }
+    this.position = new Vec3([(topLeft.x + bottomRight.x)/2, (topLeft.y + bottomRight.y)/2, (topLeft.z + bottomRight.z)/2])
     
     return true;
   }
@@ -268,7 +269,7 @@ export class Portal {
       axis2 = new Vec3([0, 0, bottomRight.z - topLeft.z - 1]);
       axis3 = new Vec3([0, -1, 0]);
     }
-    this.portalCubeLoc = corner;
+    this.portalCubeLoc = new Vec3(topLeft.xyz);
     this.differential = Vec3.sum(Vec3.sum(axis1, axis2), axis3);
     this.normal = Vec3.cross(axis1, axis2);
     this.normal.normalize();
@@ -281,6 +282,7 @@ export class Portal {
     const look = Vec3.cross(axis1, axis2);
     up.normalize();
     look.normalize();
+    console.log("Look:", look, ", Up:", up);
     this.portalCamera = new Camera(
       pos, Vec3.sum(pos, look), up, 45,
       gl.drawingBufferWidth / gl.drawingBufferHeight, 0.1, 1000.0);
