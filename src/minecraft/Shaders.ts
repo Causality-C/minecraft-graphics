@@ -120,6 +120,26 @@ export const blankCubeFSText = `
         return cols * turb;
     }
 
+    // Logic for rendering portal blocks
+    vec3 perlinPortal(vec2 uv, float seed) {
+        // Colors for solid edges
+        vec3 colsPurple = vec3(86.0 / 256.0, 60.0 / 256.0, 92.0 / 256.0);
+        vec3 colsBlack = vec3(5.0, 5.0, 5.0) / 256.0;
+        vec3 colsDarkPurple = vec3(45.0,18.0,51.0) / 256.0;
+
+        // Colors for lava
+        float turb = turbulence(uv * 3.0, seed, 1.0);
+
+        // Linear interpolation between colors
+        if (turb < 0.75) {
+            return colsDarkPurple;
+        }
+        if (turb > 0.95) {
+            return colsBlack;
+        }
+        return colsPurple;
+    }
+
     // Logic for rendering magma would be blocks below a certain elevation
     vec3 perlinMagma(vec2 uv, float seed) {
         // Colors for solid edges
@@ -179,7 +199,8 @@ export const blankCubeFSText = `
             } 
             else if(highlight >= 4.0 - epsilon) {
                 // purple means add a portal block
-                gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
+                vec3 portal = perlinPortal(uv, seed);
+                gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* portal, 1.0);
             }
             else {
                 // Red means delete
