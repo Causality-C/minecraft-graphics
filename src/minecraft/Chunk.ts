@@ -401,13 +401,7 @@ export class Chunk {
         return value + something[index];
       });
     }
-
-    this.heightMap = new Float32Array(this.size * this.size);
-    for (let i = 0; i < this.size * this.size; ++i) {
-      this.heightMap[i] = 50;
-    }
-
-
+    
     // Generate density map for chunk
     let densityMap = {};
     let totalCubes = 0;

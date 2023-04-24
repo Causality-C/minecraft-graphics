@@ -36,8 +36,10 @@ export class Portal {
     if (this.outlet === null) {
       return pos;
     }
-    const normal = this.outlet.normal;
-    return new Vec3([this.outlet.position.x + normal.x, this.outlet.position.y + normal.y + Config.PLAYER_HEIGHT, this.outlet.position.z + normal.z])
+    const normal = new Vec3(this.outlet.normal.xyz);
+    const teleported = new Vec3([this.outlet.position.x, this.outlet.position.y, this.outlet.position.z]);
+    normal.scale(3);
+    return Vec3.sum(teleported, normal);
   }
 
   // Given position of player, find distance to portal
