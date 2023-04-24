@@ -140,19 +140,24 @@ export class GUI implements IGUI {
       this.camera.rotate(this.camera.right(), -GUI.rotationSpeed * dy);
     }
 
-    const mouseNDC = new Vec4([(x/this.width) * 2 - 1, 1 - (y/this.height) * 2, -1, 1]);
+    const mouseNDC =
+        new Vec4([(x / this.width) * 2 - 1, 1 - (y / this.height) * 2, -1, 1]);
     const mouseProjection = this.projMatrix().inverse().multiplyVec4(mouseNDC);
     let mouseWorld = this.viewMatrix().inverse().multiplyVec4(mouseProjection);
     mouseWorld.scale(1 / mouseWorld.w);
 
-    const ray = Vec3.difference(new Vec3(mouseWorld.xyz), this.camera.pos()).normalize();
+    const ray = Vec3.difference(new Vec3(mouseWorld.xyz), this.camera.pos())
+                    .normalize();
     const origin = this.camera.pos();
 
     // Get the next block from the players current position.
     let t = Config.SELECT_RADIUS;
     ray.scale(t);
     const selectedCube = Vec3.sum(origin, ray);
-    this.selectedCube = new Vec3([Math.round(selectedCube.x), Math.round(selectedCube.y), Math.round(selectedCube.z)]);
+    this.selectedCube = new Vec3([
+      Math.round(selectedCube.x), Math.round(selectedCube.y),
+      Math.round(selectedCube.z)
+    ]);
     this.animation.updateSelectedCube(this.selectedCube);
   }
 
@@ -177,12 +182,12 @@ export class GUI implements IGUI {
    */
   public onKeydown(key: KeyboardEvent): void {
     switch (key.code) {
-      case 'Digit1':{
+      case 'Digit1': {
         // Default Block
         this.currentBlock = 1;
         break;
       }
-      case 'Digit2':{
+      case 'Digit2': {
         // Portal Block
         this.currentBlock = 2;
         break;
@@ -305,4 +310,96 @@ export class GUI implements IGUI {
     canvas.addEventListener(
         'contextmenu', (event: any) => event.preventDefault());
   }
+}
+
+
+// Portal should be in its own file, but imports bugs are a pain.
+export class Portal {
+  private position: Vec3;  // center of the portal in world space
+  private normal: Vec3;    // normal of face of portal, determines orientation
+  private width: number;   // width of portal
+  private height: number;  // height of portal
+  private outlet: Portal|null;  // the portal that this portal leads to
+  private camera: Camera;
+  public blocks: Vec3[];  // Coordinates of blocks that are part of the portal
+
+
+  constructor(position: Vec3, normal: Vec3, width: number, height: number) {
+    this.position = position;  // First block is the center of the portal
+    this.normal = normal;
+    this.width = width;
+    this.height = height;
+    this.outlet = null;
+    this.blocks = [position];
+
+    // Default to test the camera perspective on portal.
+    this.camera = new Camera(
+        new Vec3([0, 100, 0]), new Vec3([0, 100, -1]), new Vec3([0, 1, 0]), 45,
+        this.width / this.height, 0.1, 1000.0);
+  }
+
+  public getPortalTeleportPosition(): Vec3 {
+    return this.outlet ? this.outlet.position : this.position;
+  }
+
+  // Given position of player, find distance to portal
+  public distanceTo(position: Vec3): number {
+    return 0;
+  }
+  // Given position of player, is player inside portal?
+  public intersects(position: Vec3): boolean {
+    return true;
+  }
+
+  public getCamera(): Camera {
+    return this.camera;
+  }
+
+  // Uses floodfill to determine if a block is part of the portal
+  public addBlockIfPartOfPortal(position: Vec3): boolean {
+    // Top
+    // Bottom
+    // Left
+    // Right
+    return true;
+  }
+
+
+  // Given camera of player, calculate what the camera should be on the other
+  // side of the portal
+  public getCameraInfo(camera: Camera): Camera {
+    return camera;
+  }
+  public canAdd(pos: Vec3): boolean {
+    // TODO: Put orientation logic
+    let adj = this.blocks
+                  .filter(block => {
+                    let dist = (block.x - pos.x) ** 2 + (block.y - pos.y) ** 2 +
+                        (block.z - pos.z) ** 2;
+                    return dist <= 1;
+                  })
+                  .length;
+    if (adj >= 1) {
+      this.blocks.push(pos);
+      return true;
+    }
+    return false;
+  }
+  public blockIn(pos: Vec3): boolean {
+    return this.blocks.some(block => {
+      return block.x === pos.x && block.y === pos.y && block.z === pos.z;
+    });
+  }
+}
+
+// 2D mesh for portal
+export class PortalMesh {
+  public center: Vec3;
+  private positionsF32: Float32Array;
+  private indicesU32: Uint32Array;
+  private normalF32: Float32Array;
+  private uvF32: Float32Array;
+
+  // We assume a 1x1 square centered at the origin
+  constructor(center: Vec3) {}
 }

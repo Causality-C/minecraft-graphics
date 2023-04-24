@@ -2,6 +2,7 @@ import Rand from '../lib/rand-seed/Rand.js';
 import {Mat3, Mat4, Vec2, Vec3, Vec4} from '../lib/TSM.js';
 
 import {Config} from './App.js';
+import {Portal} from './Portal.js';
 
 export class Chunk {
   private cubes: number;  // Number of cubes that should be *drawn* each frame
@@ -10,13 +11,13 @@ export class Chunk {
   // coordinates
   private x: number;  // Center of the chunk
   private y: number;
-  private topleftx:number;
-  private toplefty:number;
-  private bottomrightx:number;
-  private bottomrighty:number;
+  private topleftx: number;
+  private toplefty: number;
+  private bottomrightx: number;
+  private bottomrighty: number;
   private size: number;  // Number of cubes along each side of the chunk
   private heightMap: Float32Array;
-  private densityMap: Object; // Used for 3D perlin noise
+  private densityMap: Object;  // Used for 3D perlin noise
   private maxHeight: number = 100;
   private unitVecs: Object;
 
@@ -38,8 +39,8 @@ export class Chunk {
     this.highlightedCubePos = 0;
   }
   private isInChunkBounds(x: number, y: number): boolean {
-  return this.topleftx <= x && x < this.bottomrightx &&
-        this.toplefty <= y && y < this.bottomrighty
+    return this.topleftx <= x && x < this.bottomrightx && this.toplefty <= y &&
+        y < this.bottomrighty
   }
 
   public verticalCollision(cameraLocation: Vec3, upwards: boolean): number {
@@ -378,7 +379,7 @@ export class Chunk {
     // Add bias towards lower heights so we dont fall through the ground
     return c * 0.5;
   }
-  
+
   private generateCubes() {
     // TODO: The real landscape-generation logic. The example code below shows
     // you how to use the pseudorandom number generator to create a few cubes.
@@ -400,7 +401,7 @@ export class Chunk {
         return value + something[index];
       });
     }
-    
+
     // Generate density map for chunk
     let densityMap = {};
     let totalCubes = 0;
@@ -481,27 +482,43 @@ export class Chunk {
   }
 
   // Returns if a cube is in the chunk and highlights it if it is
-  public updateSelected(highlightOn: boolean, selectedCube: Vec3): boolean {
+  public updateSelected(
+      highlightOn: boolean, selectedCube: Vec3, portals: Portal): boolean {
+    // Is this a portal block?
+
     // Reset the previously highlighted box
+    // if (this.highlightedCubePos < this.cubes) {
+    //   this.cubePositionsF32[4 * this.highlightedCubePos + 3] = 0.0;
+    // }
+    let highlightBlock = new Vec3([
+      this.cubePositionsF32[4 * this.highlightedCubePos],
+      this.cubePositionsF32[4 * this.highlightedCubePos + 1],
+      this.cubePositionsF32[4 * this.highlightedCubePos + 2]
+    ]);
+
     if (this.highlightedCubePos < this.cubes) {
-      this.cubePositionsF32[4 * this.highlightedCubePos + 3] = 0;
+      this.cubePositionsF32[4 * this.highlightedCubePos + 3] = 0.0;
     }
+    if (portals && portals.blockIn(highlightBlock)) {
+      this.cubePositionsF32[4 * this.highlightedCubePos + 3] = 5.0;
+    }
+
     // Do not highlight if highlighting is turned off
     if (!highlightOn) {
       return false;
     }
     // See if the selected box is in the current chunk
-    if (!this.isInChunkBounds(selectedCube.x,selectedCube.z)) {
-          return false;
+    if (!this.isInChunkBounds(selectedCube.x, selectedCube.z)) {
+      return false;
     }
     // Find if the cube is rendered in the current chunk and highlight if so
     for (let i = 0; i < this.cubes; ++i) {
       if (this.cubePositionsF32[4 * i] == selectedCube.x &&
           this.cubePositionsF32[4 * i + 1] == selectedCube.y &&
           this.cubePositionsF32[4 * i + 2] == selectedCube.z) {
-          this.cubePositionsF32[4 * i + 3] = 3; // Highlight
-          this.highlightedCubePos = i;
-          return true;
+        this.cubePositionsF32[4 * i + 3] = 3;  // Highlight
+        this.highlightedCubePos = i;
+        return true;
       }
     }
     return false;
@@ -509,9 +526,10 @@ export class Chunk {
 
   public updateLandscape(removeCube: boolean, selectedCube: Vec3) {
     // See if the selected box is in the current chunk
-    if (!this.isInChunkBounds(selectedCube.x,selectedCube.z)) {
-          return false;
+    if (!this.isInChunkBounds(selectedCube.x, selectedCube.z)) {
+      return false;
     }
+
     // Update number of cubes
     let updatedCubes = this.cubes + (removeCube ? -1 : 1);
 
@@ -522,43 +540,45 @@ export class Chunk {
     for (let i = 0; i < this.cubes; ++i) {
       // If cube is set to be removed, we skip it
       if (removeCube && this.cubePositionsF32[4 * i] == selectedCube.x &&
-        this.cubePositionsF32[4 * i + 1] == selectedCube.y &&
-        this.cubePositionsF32[4 * i + 2] == selectedCube.z) {
-          // Remove the cube
-          let idx = (selectedCube.x - this.topleftx) * this.size + (selectedCube.z - this.toplefty);
-          this.densityMap[idx][selectedCube.y] = -1.0;
-          continue;
-        }
-        // Else we copy the cube position into the updated array
-        updatedPositionsF32[4 * blockIdx] = this.cubePositionsF32[4 * i];
-        updatedPositionsF32[4 * blockIdx + 1] = this.cubePositionsF32[4 * i + 1];
-        updatedPositionsF32[4 * blockIdx + 2] = this.cubePositionsF32[4 * i + 2];
-        updatedPositionsF32[4 * blockIdx + 3] = this.cubePositionsF32[4 * i + 3];
-        ++blockIdx;
+          this.cubePositionsF32[4 * i + 1] == selectedCube.y &&
+          this.cubePositionsF32[4 * i + 2] == selectedCube.z) {
+        // Remove the cube
+        let idx = (selectedCube.x - this.topleftx) * this.size +
+            (selectedCube.z - this.toplefty);
+        this.densityMap[idx][selectedCube.y] = -1.0;
+        continue;
+      }
+      // Else we copy the cube position into the updated array
+      updatedPositionsF32[4 * blockIdx] = this.cubePositionsF32[4 * i];
+      updatedPositionsF32[4 * blockIdx + 1] = this.cubePositionsF32[4 * i + 1];
+      updatedPositionsF32[4 * blockIdx + 2] = this.cubePositionsF32[4 * i + 2];
+      updatedPositionsF32[4 * blockIdx + 3] = this.cubePositionsF32[4 * i + 3];
+      ++blockIdx;
     }
     // We add a new cube
     if (!removeCube) {
       updatedPositionsF32[4 * blockIdx] = selectedCube.x;
       updatedPositionsF32[4 * blockIdx + 1] = selectedCube.y;
       updatedPositionsF32[4 * blockIdx + 2] = selectedCube.z;
-      updatedPositionsF32[4 * blockIdx + 3] = 3;
+      updatedPositionsF32[4 * blockIdx + 3] = 5.0;
+      console.log('FILLING');
 
       this.highlightedCubePos = blockIdx;
       // Update height map and density map if we add a cube
-      let idx = (selectedCube.x - this.topleftx) * this.size + (selectedCube.z - this.toplefty);
+      let idx = (selectedCube.x - this.topleftx) * this.size +
+          (selectedCube.z - this.toplefty);
       let height = this.heightMap[idx];
       // This is the case where we add a cube on top of the current height
-      if(selectedCube.y >= height) {
+      if (selectedCube.y >= height) {
         // We're building even higher than the current height
         let densArr = [...this.densityMap[idx]];
-        for(let i = 0; i < selectedCube.y - height; ++i){
+        for (let i = 0; i < selectedCube.y - height; ++i) {
           densArr.push(-1.0);
         }
         densArr.push(1.0);
         this.densityMap[idx] = new Float32Array(densArr);
         this.heightMap[idx] = densArr.length;
-      }
-      else{
+      } else {
         this.densityMap[idx][selectedCube.y] = 1.0;
       }
     }
@@ -578,24 +598,23 @@ export class Chunk {
       const x = modificationLog[i][0];
       const y = modificationLog[i][1];
       const z = modificationLog[i][2];
-      if (this.isInChunkBounds(x,z)) {
-          modification = true;
-          if (modificationLog[i][3] < 0) {
-            if (!(x in removeCubes)) {
-              removeCubes[x] = {};
-            }
-            if (!(y in removeCubes[x])) {
-              removeCubes[x][y] = {};
-            }
-            if (!(z in removeCubes[x][y])) {
-              removeCubes[x][y][z] = modificationLog[i][3];
-              updatedCubes += modificationLog[i][3];
-            }
-          } else {
-            addCubes.push([x, y, z]);
+      if (this.isInChunkBounds(x, z)) {
+        modification = true;
+        if (modificationLog[i][3] < 0) {
+          if (!(x in removeCubes)) {
+            removeCubes[x] = {};
+          }
+          if (!(y in removeCubes[x])) {
+            removeCubes[x][y] = {};
+          }
+          if (!(z in removeCubes[x][y])) {
+            removeCubes[x][y][z] = modificationLog[i][3];
             updatedCubes += modificationLog[i][3];
           }
-
+        } else {
+          addCubes.push([x, y, z]);
+          updatedCubes += modificationLog[i][3];
+        }
       }
     }
     if (!modification) {
@@ -614,9 +633,9 @@ export class Chunk {
       // Removed Cubes
       if (x in removeCubes && y in removeCubes[x] && z in removeCubes[x][y]) {
         // Update collision logic to remove cube
-          let idx = (x - this.topleftx) * this.size + (z - this.toplefty);
-          this.densityMap[idx][y] = -1.0;
-          continue;
+        let idx = (x - this.topleftx) * this.size + (z - this.toplefty);
+        this.densityMap[idx][y] = -1.0;
+        continue;
       }
       updatedPositionsF32[4 * blockIdx] = this.cubePositionsF32[4 * i];
       updatedPositionsF32[4 * blockIdx + 1] = this.cubePositionsF32[4 * i + 1];
@@ -640,24 +659,23 @@ export class Chunk {
       const y = addCubes[i][1];
       let height = this.heightMap[idx];
       // This is the case where we add a cube on top of the current height
-      if(y >= height) {
+
+      if (y >= height) {
         // We're building even higher than the current height
         let densArr = [...this.densityMap[idx]];
-        for(let i = 0; i < y - height; ++i){
+        for (let i = 0; i < y - height; ++i) {
           densArr.push(-1.0);
         }
         densArr.push(1.0);
         this.densityMap[idx] = new Float32Array(densArr);
         this.heightMap[idx] = densArr.length;
-      }
-      else{
+      } else {
         this.densityMap[idx][y] = 1.0;
       }
     }
     // Update internal data structures
     this.cubePositionsF32 = updatedPositionsF32;
     this.cubes = updatedCubes;
-
   }
 
   public cubePositions(): Float32Array {

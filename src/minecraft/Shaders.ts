@@ -35,6 +35,7 @@ export const blankCubeFSText = `
     varying vec4 wsPos;
     varying vec2 uv;
     varying float highlight;
+    uniform sampler2D uTexture;
 
     float smoothmix(float a0, float a1, float w) {
         return (a1 - a0) * (3.0 - w * 2.0) * w * w + a0;
@@ -171,11 +172,7 @@ export const blankCubeFSText = `
 
         // Highlight logic for the block
 
-        if(highlight >= 4.0 - epsilon && highlight <= 4.0 + epsilon) {
-            // purple means add a portal block
-            gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
-        }
-        else if (highlight >= 2.0 - epsilon) {
+        if (highlight >= 2.0 - epsilon) {
             if (highlight >= 2.0 - epsilon && highlight <= 2.0 + epsilon) { 
                 // Green means add
                 gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
@@ -188,7 +185,8 @@ export const blankCubeFSText = `
                 // Red means delete
                 gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
             }
-        } else {
+        } 
+        else {
             // Lava/Magma only generates on low locations
             if(wsPos.y < 20.5) {
                 vec3 magma = perlinMagma(uv, seed);
@@ -205,5 +203,52 @@ export const blankCubeFSText = `
                 gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* stone, 1.0);
             }
         }
+
+
     }
+`;
+
+export const blankPortalVSText = `
+    precision mediump float;
+
+    uniform vec4 uLightPos;
+    uniform mat4 uView;
+    uniform mat4 uProj;
+
+    attribute vec4 aNorm;
+    attribute vec4 aVertPos;
+    attribute vec4 aOffset;
+    attribute vec2 aUV;
+
+    varying vec4 normal;
+    varying vec4 wsPos;
+    varying vec2 uv;
+
+    void main () {
+        vec4 offset = vec4(aOffset.x, aOffset.y, aOffset.z, 0.0);
+        gl_Position = uProj * uView * (aVertPos + offset);
+        wsPos = aVertPos + aOffset;
+        normal = normalize(aNorm);
+        uv = aUV;
+    }
+`;
+
+
+export const blankPortalFSText = `
+precision mediump float;
+
+uniform vec4 uLightPos;
+
+varying vec4 normal;
+varying vec4 wsPos;
+varying vec2 uv;
+uniform sampler2D uTexture;
+
+void main() {
+    // Can change based on texture in the future
+    // gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
+    if( normal.z == -1.0){
+        gl_FragColor = texture2D(uTexture, uv);
+    }
+}
 `;

@@ -1,4 +1,4 @@
-import {Mat4, Vec3, Vec4} from '../lib/TSM.js';
+import {Mat4, Quat, Vec3, Vec4} from '../lib/TSM.js';
 import {Camera} from '../lib/webglutils/Camera.js';
 import {CanvasAnimation, WebGLUtilities,} from '../lib/webglutils/CanvasAnimation.js';
 import {Debugger} from '../lib/webglutils/Debugging.js';
@@ -6,9 +6,8 @@ import {RenderPass} from '../lib/webglutils/RenderPass.js';
 
 import {Chunk} from './Chunk.js';
 import {Cube} from './Cube.js';
-import {GUI} from './Gui.js';
-import { Portal } from './Portal.js';
-import {blankCubeFSText, blankCubeVSText} from './Shaders.js';
+import {GUI, Portal} from './Gui.js';
+import {blankCubeFSText, blankCubeVSText, blankPortalFSText, blankPortalVSText} from './Shaders.js';
 
 export class Config {
   public static PLAYER_RADIUS: number = 0.4;
@@ -25,16 +24,16 @@ export class Config {
   public static BORDER_CHUNKS: number = 1.0;
 
   // Number of chunks to store in cache before resetting; for hysteresis
-  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1)** 2
+  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1) ** 2;
 
-      public static GRAVITY: number = -9.8;
+  public static GRAVITY: number = -9.8;
 
   public static JUMP_VELOCITY: number = 10.0;
 
-  public static DAY_TIME_SECONDS: number = 60.0
+  public static DAY_TIME_SECONDS: number = 60.0;
 
-      public static NIGHT_COLOR: Vec4 =
-          new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
+  public static NIGHT_COLOR: Vec4 =
+      new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
 
   public static DAY_COLOR: Vec4 =
       new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);
@@ -78,7 +77,12 @@ export class MinecraftAnimation extends CanvasAnimation {
   private frameTime: number;
 
   /* Portal Rendering Info */
+  private portalRenderPass: RenderPass;
   private portals: Portal[];
+  private portalBuffer: Uint8Array;
+  private portalPerspectiveRP: RenderPass;
+  private secondBuffer: WebGLFramebuffer;
+  private portalOutletCamera: Camera;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -101,7 +105,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.blankCubeRenderPass =
         new RenderPass(gl, blankCubeVSText, blankCubeFSText);
     this.cubeGeometry = new Cube();
-    this.initBlankCube();
+    this.initBlankCube(this.blankCubeRenderPass, this.gui.getCamera());
 
     this.lightPosition = new Vec4([-1000, 1000, -1000, 1]);
     this.backgroundColor = new Vec4([0.0, 0.37254903, 0.37254903, 1.0]);
@@ -109,8 +113,61 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.highlightOn = false;
     this.modificationLog = [];
 
-    // Portals
+    // Portals: use their own renderpass, should probably have their own
+    // collsion logic
     this.portals = [];
+    this.portalRenderPass =
+        new RenderPass(gl, blankPortalVSText, blankPortalFSText);
+    this.portalBuffer =
+        new Uint8Array(4 * gl.drawingBufferHeight * gl.drawingBufferWidth);
+    this.initPortal(this.portalRenderPass, this.gui.getCamera());
+
+
+    // This is the portal perspective render pass: we should probably lower the
+    // resolution
+    this.portalPerspectiveRP =
+        new RenderPass(gl, blankCubeVSText, blankCubeFSText);
+
+    // These are arbitrary values but useful for debugging
+    let pos: Vec3 = new Vec3([-26.598791122436523, 65.5, -12.321470260620117]);
+    // this means we are looking out on the +z axis
+    let look: Vec3 = new Vec3([0.0, 0.0, 1.0]);
+    let up: Vec3 = new Vec3([0.0, 1.0, 0.0]);
+
+    this.portalOutletCamera = new Camera(
+        pos, Vec3.sum(pos, look), up, 45,
+        gl.drawingBufferWidth / gl.drawingBufferHeight, 0.1, 1000.0);
+
+    this.initBlankCube(this.portalPerspectiveRP, this.portalOutletCamera);
+
+    // Allocate another frame buffer
+    this.secondBuffer = this.createFrameBuffer(
+        gl, gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+    // Reset so things work
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  private createFrameBuffer(
+      gl: WebGLRenderingContext, width: number,
+      height: number): WebGLFramebuffer {
+    const offscreenFBO = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, offscreenFBO);
+
+    const renderbuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+    gl.renderbufferStorage(
+        gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+    gl.framebufferRenderbuffer(
+        gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+
+    // Create and bind a color buffer for the color attachment
+    const colorBuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, colorBuffer);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA4, width, height);
+    gl.framebufferRenderbuffer(
+        gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, colorBuffer);
+    return offscreenFBO as WebGLFramebuffer;
   }
 
   private chunkKey(x: number, z: number): string {
@@ -147,7 +204,8 @@ export class MinecraftAnimation extends CanvasAnimation {
       } else {
         newChunks[key] = new Chunk(xCoords[i], zCoords[i], Config.CHUNK_SIZE);
 
-        // When loading chunks, we need to update the chunk's state based on modified blocks
+        // When loading chunks, we need to update the chunk's state based on
+        // modified blocks
         newChunks[key].updateFromLog(this.modificationLog);
       }
       if (i == Math.floor(((1 + 2 * Config.BORDER_CHUNKS) ** 2) / 2)) {
@@ -205,56 +263,106 @@ export class MinecraftAnimation extends CanvasAnimation {
    */
   public reset(): void {
     this.gui.reset();
-
     this.playerPosition = this.gui.getCamera().pos();
   }
 
   /**
-   * Sets up the blank cube drawing
+   * Sets up the blank cube drawing for a given perspective
    */
-  private initBlankCube(): void {
-    this.blankCubeRenderPass.setIndexBufferData(
-        this.cubeGeometry.indicesFlat());
-    this.blankCubeRenderPass.addAttribute(
+  private initBlankCube(renderPass: RenderPass, perspective: Camera): void {
+    renderPass.setIndexBufferData(this.cubeGeometry.indicesFlat());
+    renderPass.addAttribute(
         'aVertPos', 4, this.ctx.FLOAT, false,
         4 * Float32Array.BYTES_PER_ELEMENT, 0, undefined,
         this.cubeGeometry.positionsFlat());
 
-    this.blankCubeRenderPass.addAttribute(
+    renderPass.addAttribute(
         'aNorm', 4, this.ctx.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT,
         0, undefined, this.cubeGeometry.normalsFlat());
 
-    this.blankCubeRenderPass.addAttribute(
+    renderPass.addAttribute(
         'aUV', 2, this.ctx.FLOAT, false, 2 * Float32Array.BYTES_PER_ELEMENT, 0,
         undefined, this.cubeGeometry.uvFlat());
 
-    this.blankCubeRenderPass.addInstancedAttribute(
+    renderPass.addInstancedAttribute(
         'aOffset', 4, this.ctx.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT,
         0, undefined, new Float32Array(0));
 
-    this.blankCubeRenderPass.addUniform(
+    renderPass.addUniform(
         'uLightPos', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniform4fv(loc, this.lightPosition.xyzw);
         });
-    this.blankCubeRenderPass.addUniform(
+    renderPass.addUniform(
         'uProj', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniformMatrix4fv(
-              loc, false, new Float32Array(this.gui.projMatrix().all()));
+              loc, false, new Float32Array(perspective.projMatrix().all()));
         });
-    this.blankCubeRenderPass.addUniform(
+    renderPass.addUniform(
         'uView', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniformMatrix4fv(
-              loc, false, new Float32Array(this.gui.viewMatrix().all()));
+              loc, false, new Float32Array(perspective.viewMatrix().all()));
         });
-    this.blankCubeRenderPass.addUniform(
+    renderPass.addUniform(
         'uTime', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniform1f(loc, (Date.now() / 500.0) % (2 * Math.PI));
         });
 
-    this.blankCubeRenderPass.setDrawData(
+    renderPass.setDrawData(
         this.ctx.TRIANGLES, this.cubeGeometry.indicesFlat().length,
         this.ctx.UNSIGNED_INT, 0);
-    this.blankCubeRenderPass.setup();
+    renderPass.setup();
+  }
+
+  private initPortal(portalRenderPass: RenderPass, perspective: Camera): void {
+    // These are the indices we'll use for the cube vertices
+    portalRenderPass.setIndexBufferData(this.cubeGeometry.indicesFlat());
+    portalRenderPass.addAttribute(
+        'aVertPos', 4, this.ctx.FLOAT, false,
+        4 * Float32Array.BYTES_PER_ELEMENT, 0, undefined,
+        this.cubeGeometry.positionsFlat());
+
+    portalRenderPass.addAttribute(
+        'aNorm', 4, this.ctx.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT,
+        0, undefined, this.cubeGeometry.normalsFlat());
+
+    portalRenderPass.addAttribute(
+        'aUV', 2, this.ctx.FLOAT, false, 2 * Float32Array.BYTES_PER_ELEMENT, 0,
+        undefined, this.cubeGeometry.uvFlat());
+
+    // For this render pass howm any cubes are we going to draw
+    portalRenderPass.addInstancedAttribute(
+        'aOffset', 4, this.ctx.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT,
+        0, undefined, new Float32Array(0));
+
+    // Add world space light position
+    portalRenderPass.addUniform(
+        'uLightPos', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniform4fv(loc, this.lightPosition.xyzw);
+        });
+
+    // Camera Matrices
+    portalRenderPass.addUniform(
+        'uProj', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniformMatrix4fv(
+              loc, false, new Float32Array(perspective.projMatrix().all()));
+        });
+    portalRenderPass.addUniform(
+        'uView', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniformMatrix4fv(
+              loc, false, new Float32Array(perspective.viewMatrix().all()));
+        });
+    // Set up the texture location uniform
+    portalRenderPass.addUniform(
+        'uTexture', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniform1i(loc, 0);
+        });
+
+    // Initialize the blocks draw information
+    portalRenderPass.setDrawData(
+        this.ctx.TRIANGLES, this.cubeGeometry.indicesFlat().length,
+        this.ctx.UNSIGNED_INT, 0);
+
+    portalRenderPass.setup();
   }
 
   /**
@@ -315,6 +423,65 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.gravityTime = Date.now();
     }
 
+    // Portal Position and orientation logic
+    if (this.portals.length !== 0) {
+      // Only try first portal for now
+      let portal: Portal = this.portals[0];
+      let portalPos: Vec3 = portal.blocks[0];
+
+      // Compute distance between player and arbitrary block
+      let outletPos: Vec3 =
+          new Vec3([-26.598791122436523, 65.5, -12.321470260620117]);
+      let delta: Vec3 = Vec3.difference(this.playerPosition, portalPos);
+
+      // Compute Rotation
+
+      // Create two vectors we are going to use to calculate the angle
+      let vec1: Vec3 = Vec3.difference(
+          new Vec3(),
+          this.portalOutletCamera.forward());  // portal facing direction
+      let vec2: Vec3 = new Vec3([0, 0, -1]);   // user facing direction (look)
+
+      // Angle between the two vectors, normalized to -PI to PI
+      let theta: number =
+          Math.atan2(vec1.z, vec1.x) - Math.atan2(vec2.z, vec2.x);
+      if (theta > Math.PI) {
+        theta -= 2 * Math.PI;
+      } else if (theta < -Math.PI) {
+        theta += 2 * Math.PI;
+      }
+
+      // Axis of rotation and angle
+      let rotAxis: Vec3 = Vec3.cross(vec1, vec2).normalize();
+      rotAxis.normalize();
+
+      // Apply rotation transformation if needed
+      let rot: Quat;
+      let vec2neg: Vec3 = new Vec3([-vec2.x, -vec2.y, -vec2.z]);
+
+      if (vec1.equals(vec2neg)) {
+        // Case 1: Portal entrance and exit exhibit opposite facing directions
+        rot = Quat.fromAxisAngle(new Vec3([0, -1, 0]), Math.PI);
+      } else if (vec1.equals(vec2)) {
+        // Case 2: Portal entrance and exit face the same direction
+        rot = Quat.fromAxisAngle(new Vec3([0, 1, 0]), 0);
+        delta = new Vec3([delta.x, delta.y, -delta.z]);
+        // see if there is a legit fix
+      } else {
+        // Case 3: Portal entrance and exit face different directions
+        rot = Quat.fromAxisAngle(rotAxis, theta);
+      }
+      delta = rot.multiplyVec3(delta);
+
+      let updatedPos: Vec3 = Vec3.sum(outletPos, delta);
+
+      // Lets assume we are looking at the portal at the +x direction
+
+
+      this.portalOutletCamera.setPos(updatedPos);
+    }
+
+    // Day night logic
     let ellipseCenter: Vec4 =
         new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);
     let cycleTime: number =
@@ -325,7 +492,6 @@ export class MinecraftAnimation extends CanvasAnimation {
     let curveVector: Vec4 =
         new Vec4([1000.0 * sinT, 1000.0 * cosT, 1000.0 * sinT, 1.0]);
     this.lightPosition = Vec4.sum(ellipseCenter, curveVector);
-
     let heightPercent: number =
         Math.max((this.lightPosition.y + 500.0) / 1500.0, 0.0);
     this.backgroundColor = Vec4.sum(
@@ -344,22 +510,72 @@ export class MinecraftAnimation extends CanvasAnimation {
     gl.frontFace(gl.CCW);
     gl.cullFace(gl.BACK);
 
-    gl.bindFramebuffer(
-        gl.FRAMEBUFFER, null);  // null is the default frame buffer
+    // Scene is drawn
     this.drawScene(0, 0, 1280, 960);
 
     // Draw debug information
-    let debugText: string = `Coords: (${this.playerPosition.xyz.map((x) => {return x.toFixed(2);})})`;
-    let debugTextLook: string = `Look: (${this.gui.getCamera().forward().xyz.map((x) => {return x.toFixed(2);})})`;
+    let debugText: string = `Coords: (${this.playerPosition.xyz.map((x) => {
+      return x.toFixed(2);
+    })})`;
+    let debugTextLook: string =
+        `Look: (${this.gui.getCamera().forward().xyz.map((x) => {
+          return x.toFixed(2);
+        })})`;
+    let debugTextUp: string = `Up: (${this.gui.getCamera().up().xyz.map((x) => {
+      return x.toFixed(2);
+    })})`;
     let debugTextBlock: string = `Block: ${this.gui.currentBlock}`
-    let debugElement: HTMLElement = document.getElementById("coords") as HTMLElement;
-    debugElement.innerHTML = debugText + "\n" + debugTextLook + "\n" + debugTextBlock;
+    let debugElement: HTMLElement =
+        document.getElementById('coords') as HTMLElement;
+    debugElement.innerHTML = debugText + '\n' + debugTextLook + '\n' +
+        debugTextBlock + '\n' + debugTextUp;
+  }
+  private readTextureFromBuffer(
+      gl: WebGLRenderingContext, width: number, height: number,
+      dest: Uint8Array) {
+    let texture = gl.createTexture();
+    gl.readPixels(
+        0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, this.portalBuffer);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(
+        gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+        this.portalBuffer);
+    // Clamp on horizontal and vertical and linearly interpolate
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   }
 
   private drawScene(x: number, y: number, width: number, height: number): void {
     const gl: WebGLRenderingContext = this.ctx;
-    gl.viewport(x, y, width, height);
 
+    // Use an offscreen buffer to compute the portal's perspective
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.secondBuffer);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.viewport(x, y, width, height);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
+    gl.frontFace(gl.CCW);
+    gl.cullFace(gl.BACK);
+
+    for (let chunk in this.chunks) {
+      // Compute the render the portal's perspective also
+      this.portalPerspectiveRP.updateAttributeBuffer(
+          'aOffset', this.chunks[chunk].cubePositions());
+      this.portalPerspectiveRP.drawInstanced(this.chunks[chunk].numCubes());
+    }
+
+    // Move portal's perspective to the buffer
+    this.readTextureFromBuffer(gl, width, height, this.portalBuffer);
+
+    // We do the computation and feed this texture into portals -- TODO: see
+    // Now use default frame buffer to draw the scene
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     for (let chunk in this.chunks) {
       this.blankCubeRenderPass.updateAttributeBuffer(
           'aOffset', this.chunks[chunk].cubePositions());
@@ -368,14 +584,29 @@ export class MinecraftAnimation extends CanvasAnimation {
     // We draw a sillouette of the selected cube on top of everything else.
     if (this.highlightSelected && this.highlightOn) {
       // Draw a portal sillouette if the player is in portal mode
-      if(this.gui.currentBlock == 2){
+      if (this.gui.currentBlock == 2) {
         this.selectedCubeF32[3] = 4.0;
       }
       this.blankCubeRenderPass.updateAttributeBuffer(
-        'aOffset', this.selectedCubeF32);
+          'aOffset', this.selectedCubeF32);
       this.blankCubeRenderPass.drawInstanced(1);
     }
+
+
     // Now we draw the portals if they exist
+    let portalPositions: number[] = [];
+    if (this.portals.length !== 0) {
+      this.portals[0].blocks.forEach((block: Vec3) => {
+        portalPositions.push(block.x);
+        portalPositions.push(block.y);
+        portalPositions.push(block.z);
+        portalPositions.push(1.0);
+      })
+      let portalPositionsF32: Float32Array = new Float32Array(portalPositions);
+      this.portalRenderPass.updateAttributeBuffer(
+          'aOffset', portalPositionsF32);
+      this.portalRenderPass.drawInstanced(this.portals[0].blocks.length);
+    }
   }
 
   public getGUI(): GUI {
@@ -395,12 +626,20 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.selectedCubeF32[0] = selectedCube.x;
     this.selectedCubeF32[1] = selectedCube.y;
     this.selectedCubeF32[2] = selectedCube.z;
-    this.selectedCubeF32[3] = 2.0; // We use 2.0 to indicate that the cube should be highlighted, as seen in the shader
+    this.selectedCubeF32[3] =
+        2.0;  // We use 2.0 to indicate that the cube should be highlighted, as
+              // seen in the shader
 
-    // We globally determine the block selected and if it should be removed (ie with this.removeCube)
+    // We globally determine the block selected and if it should be removed (ie
+    // with this.removeCube)
     let isRemovingCube = false;
+    let isPortal = this.portals.some(
+        (portal: Portal) => {return portal.blockIn(selectedCube)});
+    // console.log(isPortal, selectedCube.xyz);
     for (let chunk in this.chunks) {
-      isRemovingCube = isRemovingCube || this.chunks[chunk].updateSelected(this.highlightOn, selectedCube);
+      isRemovingCube = isRemovingCube ||
+          this.chunks[chunk].updateSelected(
+              this.highlightOn, selectedCube, this.portals[0]);
     }
     this.removeCube = isRemovingCube;
     this.highlightSelected = true;
@@ -415,10 +654,9 @@ export class MinecraftAnimation extends CanvasAnimation {
     let cubeInLog = false;
     for (let i = 0; i < this.modificationLog.length; ++i) {
       // Checks if the cube is already in the log
-      if (this.modificationLog[i][0] == x &&
-          this.modificationLog[i][1] == y &&
+      if (this.modificationLog[i][0] == x && this.modificationLog[i][1] == y &&
           this.modificationLog[i][2] == z) {
-            cubeInLog = true;
+        cubeInLog = true;
       } else {
         newLog.push(this.modificationLog[i]);
       }
@@ -428,13 +666,35 @@ export class MinecraftAnimation extends CanvasAnimation {
     if (!cubeInLog) {
       newLog.push([x, y, z, this.removeCube ? -1 : 1]);
     }
-
-    // Update log and all chunks
     this.modificationLog = newLog;
-    for (let chunk in this.chunks) {
-      this.chunks[chunk].updateLandscape(this.removeCube, selectedCube);
+    // Portal
+    if (this.gui.currentBlock == 2) {
+      // Create a new portal instance
+      if (!this.removeCube) {
+        if (this.portals.length === 0) {
+          let portal = new Portal(selectedCube, new Vec3([1, 1, 1]), 1, 1);
+          // Set up new render pass
+          this.portals.push(portal);
+        } else {
+          // Loop thorugh all portals and see if the selected cube can be added
+          let canAdd = this.portals.filter((portal) => {
+            return portal.canAdd(selectedCube);
+          });
+
+          // TODO: 2+ Merge portal logic
+          if (canAdd.length === 0) {
+            let portal = new Portal(selectedCube, new Vec3([1, 1, 1]), 1, 1);
+            this.portals.push(portal);
+          }
+        }
+      }
+    } else {
+      // Update log and all chunks
+      for (let chunk in this.chunks) {
+        this.chunks[chunk].updateLandscape(this.removeCube, selectedCube);
+      }
+      this.removeCube = !this.removeCube;
     }
-    this.removeCube = !this.removeCube;
   }
 }
 
