@@ -80,24 +80,11 @@ export class MinecraftAnimation extends CanvasAnimation {
   /* Portal Rendering Info */
   private portalRenderPass: RenderPass;
   private portals: Portal[];
-  private portalProgram: WebGLProgram;
-  private portalVAO: WebGLVertexArrayObject;
 
-  /* portal Buffers */
-  private portalPosBuffer: WebGLBuffer = -1;
-  private portalIndexBuffer: WebGLBuffer = -1;
-  private portalNormBuffer: WebGLBuffer = -1;
-
-  /* portal Attribute Locations */
-  private portalPosAttribLoc: GLint = -1;
-  private portalNormAttribLoc: GLint = -1;
-
-  /* portal Uniform Locations */
-  private portalWorldUniformLocation: WebGLUniformLocation = -1;
-  private portalViewUniformLocation: WebGLUniformLocation = -1;
-  private portalProjUniformLocation: WebGLUniformLocation = -1;
-  private portalLightUniformLocation: WebGLUniformLocation = -1;
-
+  private portalBuffer: Uint8Array;
+  private portalPerspectiveRP: RenderPass;
+  private secondBuffer: WebGLFramebuffer;
+  private portalOutletCamera: Camera;
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
 
@@ -119,7 +106,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.blankCubeRenderPass =
         new RenderPass(gl, blankCubeVSText, blankCubeFSText);
     this.cubeGeometry = new Cube();
-    this.initBlankCube(this.blankCubeRenderPass);
+    this.initBlankCube(this.blankCubeRenderPass, this.gui.getCamera());
 
 
 
@@ -131,12 +118,82 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     // Portals
     this.portals = [];
-    // this.initBlankCube(this.portalRenderPass);
     const portalMesh = new PortalMesh(new Vec3([-50, 0, -50]), new Vec3([0, 100, 0]), new Vec3([100, 0, 0]), new Vec3([0, 0, 1]))
     this.portalRenderPass =
         new RenderPass(gl, portalMeshVSText, portalMeshFSText);
     this.initPortalMesh(this.portalRenderPass, portalMesh);
+
+    // Portals: use their own renderpass, should probably have their own
+    // collsion logic
+    this.portalBuffer =
+        new Uint8Array(4 * gl.drawingBufferHeight * gl.drawingBufferWidth);
+
+    // This is the portal perspective render pass: we should probably lower the
+    // resolution
+    this.portalPerspectiveRP =
+        new RenderPass(gl, blankCubeVSText, blankCubeFSText);
+
+    // These are arbitrary values but useful for debugging
+    let pos: Vec3 = new Vec3([-26.598791122436523, 65.5, -12.321470260620117]);
+    // this means we are looking out on the +z axis
+    let look: Vec3 = new Vec3([0.0, 0.0, 1.0]);
+    let up: Vec3 = new Vec3([0.0, 1.0, 0.0]);
+
+    this.portalOutletCamera = new Camera(
+        pos, Vec3.sum(pos, look), up, 45,
+        gl.drawingBufferWidth / gl.drawingBufferHeight, 0.1, 1000.0);
+
+    this.initBlankCube(this.portalPerspectiveRP, this.portalOutletCamera);
+
+    // Allocate another frame buffer
+    this.secondBuffer = this.createFrameBuffer(
+        gl, gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+    // Reset so things work
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
+
+  private createFrameBuffer(
+    gl: WebGLRenderingContext, width: number,
+    height: number): WebGLFramebuffer {
+    const offscreenFBO = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, offscreenFBO);
+
+    const renderbuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+    gl.renderbufferStorage(
+        gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+    gl.framebufferRenderbuffer(
+        gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+
+    // Create and bind a color buffer for the color attachment
+    const colorBuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, colorBuffer);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA4, width, height);
+    gl.framebufferRenderbuffer(
+        gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, colorBuffer);
+    return offscreenFBO as WebGLFramebuffer;
+  }
+
+  private readTextureFromBuffer(
+    gl: WebGLRenderingContext, width: number, height: number,
+    dest: Uint8Array) {
+    let texture = gl.createTexture();
+    gl.readPixels(
+        0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, this.portalBuffer);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(
+        gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+        this.portalBuffer);
+    // Clamp on horizontal and vertical and linearly interpolate
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  }
+
 
   private chunkKey(x: number, z: number): string {
     return `${Math.round(x)}_${Math.round(z)}`;
@@ -238,7 +295,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   /**
    * Sets up the blank cube drawing
    */
-  private initBlankCube(renderPass: RenderPass): void {
+  private initBlankCube(renderPass: RenderPass, perspective: Camera): void {
     renderPass.setIndexBufferData(this.cubeGeometry.indicesFlat());
     renderPass.addAttribute(
         'aVertPos', 4, this.ctx.FLOAT, false,
@@ -264,12 +321,12 @@ export class MinecraftAnimation extends CanvasAnimation {
     renderPass.addUniform(
         'uProj', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniformMatrix4fv(
-              loc, false, new Float32Array(this.gui.projMatrix().all()));
+              loc, false, new Float32Array(perspective.projMatrix().all()));
         });
     renderPass.addUniform(
         'uView', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
           gl.uniformMatrix4fv(
-              loc, false, new Float32Array(this.gui.viewMatrix().all()));
+              loc, false, new Float32Array(perspective.viewMatrix().all()));
         });
     renderPass.addUniform(
         'uTime', (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
@@ -439,9 +496,30 @@ export class MinecraftAnimation extends CanvasAnimation {
 
   private drawScene(x: number, y: number, width: number, height: number): void {
     const gl: WebGLRenderingContext = this.ctx;
+    // Use an offscreen buffer to compute the portal's perspective
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.secondBuffer);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.viewport(x, y, width, height);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
+    gl.frontFace(gl.CCW);
+    gl.cullFace(gl.BACK);
+
+    for (let chunk in this.chunks) {
+      // Compute the render the portal's perspective also
+      this.portalPerspectiveRP.updateAttributeBuffer(
+          'aOffset', this.chunks[chunk].cubePositions());
+      this.portalPerspectiveRP.drawInstanced(this.chunks[chunk].numCubes());
+    }
+
+    // Move portal's perspective to the buffer
+    this.readTextureFromBuffer(gl, width, height, this.portalBuffer);
+
+    // We do the computation and feed this texture into portals -- TODO: see
+    // Now use default frame buffer to draw the scene
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 
     for (let chunk in this.chunks) {
