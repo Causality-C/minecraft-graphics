@@ -82,7 +82,8 @@ export class MinecraftAnimation extends CanvasAnimation {
   private portalBuffer: Uint8Array;
   private portalPerspectiveRP: RenderPass;
   private secondBuffer: WebGLFramebuffer;
-  private portalOutletCamera: Camera;
+  public portalOutletCamera: Camera;
+  private portalOutletCameraOrientation: Vec3;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -129,10 +130,11 @@ export class MinecraftAnimation extends CanvasAnimation {
         new RenderPass(gl, blankCubeVSText, blankCubeFSText);
 
     // These are arbitrary values but useful for debugging
-    let pos: Vec3 = new Vec3([-26.598791122436523, 65.5, -12.321470260620117]);
+    let pos: Vec3 = new Vec3([-26.598791122436523, 68.5, -12.321470260620117]);
     // this means we are looking out on the +z axis
     let look: Vec3 = new Vec3([0.0, 0.0, 1.0]);
     let up: Vec3 = new Vec3([0.0, 1.0, 0.0]);
+    this.portalOutletCameraOrientation = look;  // initial orientation
 
     this.portalOutletCamera = new Camera(
         pos, Vec3.sum(pos, look), up, 45,
@@ -431,16 +433,16 @@ export class MinecraftAnimation extends CanvasAnimation {
 
       // Compute distance between player and arbitrary block
       let outletPos: Vec3 =
-          new Vec3([-26.598791122436523, 65.5, -12.321470260620117]);
+          new Vec3([-26.598791122436523, 60.5, -12.321470260620117]);
       let delta: Vec3 = Vec3.difference(this.playerPosition, portalPos);
 
       // Compute Rotation
 
       // Create two vectors we are going to use to calculate the angle
-      let vec1: Vec3 = Vec3.difference(
-          new Vec3(),
-          this.portalOutletCamera.forward());  // portal facing direction
-      let vec2: Vec3 = new Vec3([0, 0, -1]);   // user facing direction (look)
+      let vec1: Vec3 =
+          this.portalOutletCameraOrientation;  // portal facing direction
+      let vec2: Vec3 =
+          new Vec3([1, 0, 0]);  // user facing direction (not normal)
 
       // Angle between the two vectors, normalized to -PI to PI
       let theta: number =
@@ -450,9 +452,11 @@ export class MinecraftAnimation extends CanvasAnimation {
       } else if (theta < -Math.PI) {
         theta += 2 * Math.PI;
       }
+      theta = Math.abs(theta);  // TODO: add y-axis
+
 
       // Axis of rotation and angle
-      let rotAxis: Vec3 = Vec3.cross(vec1, vec2).normalize();
+      let rotAxis: Vec3 = Vec3.cross(vec2, vec1).normalize();
       rotAxis.normalize();
 
       // Apply rotation transformation if needed
@@ -461,23 +465,24 @@ export class MinecraftAnimation extends CanvasAnimation {
 
       if (vec1.equals(vec2neg)) {
         // Case 1: Portal entrance and exit exhibit opposite facing directions
-        rot = Quat.fromAxisAngle(new Vec3([0, -1, 0]), Math.PI);
+        rot = Quat.fromAxisAngle(new Vec3([0, 1, 0]), Math.PI);
       } else if (vec1.equals(vec2)) {
         // Case 2: Portal entrance and exit face the same direction
-        rot = Quat.fromAxisAngle(new Vec3([0, 1, 0]), 0);
-        delta = new Vec3([delta.x, delta.y, -delta.z]);
-        // see if there is a legit fix
+        rot = Quat.fromAxisAngle(new Vec3([0, -1, 0]), 0);
       } else {
         // Case 3: Portal entrance and exit face different directions
         rot = Quat.fromAxisAngle(rotAxis, theta);
       }
-      delta = rot.multiplyVec3(delta);
 
-      let updatedPos: Vec3 = Vec3.sum(outletPos, delta);
+      // Compute angle of Camera
+      // let camFor = this.gui.getCamera().forward().negate();
+      // let deltaAng = rot.multiplyVec3(camFor);
+      // let newLook = Vec3.sum(outletPos, deltaAng);
+      // this.portalOutletCamera.setTarget(newLook);
 
-      // Lets assume we are looking at the portal at the +x direction
-
-
+      // Compute Placement of camera
+      let deltaRot = rot.multiplyVec3(delta);
+      let updatedPos: Vec3 = Vec3.sum(outletPos, deltaRot);
       this.portalOutletCamera.setPos(updatedPos);
     }
 
@@ -534,8 +539,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       gl: WebGLRenderingContext, width: number, height: number,
       dest: Uint8Array) {
     let texture = gl.createTexture();
-    gl.readPixels(
-        0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, this.portalBuffer);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, dest);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);

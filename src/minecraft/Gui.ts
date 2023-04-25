@@ -138,6 +138,11 @@ export class GUI implements IGUI {
     if (this.dragging) {
       this.camera.rotate(new Vec3([0, 1, 0]), -GUI.rotationSpeed * dx);
       this.camera.rotate(this.camera.right(), -GUI.rotationSpeed * dy);
+      // this.animation.portalOutletCamera.rotate(
+      //     new Vec3([0, 1, 0]), -GUI.rotationSpeed * dx);
+      // this.animation.portalOutletCamera.rotate(
+      //     this.animation.portalOutletCamera.right(), -GUI.rotationSpeed *
+      //     dy);
     }
 
     const mouseNDC =

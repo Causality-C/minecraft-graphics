@@ -229,7 +229,12 @@ export const blankPortalVSText = `
         gl_Position = uProj * uView * (aVertPos + offset);
         wsPos = aVertPos + aOffset;
         normal = normalize(aNorm);
-        uv = aUV;
+        if(normal.x == 1.0 || normal.z == -1.0){
+            uv = vec2(aUV.x, aUV.y);
+        }
+        else{
+            uv = vec2(1.0 - aUV.x, aUV.y);
+        }
     }
 `;
 
@@ -247,7 +252,8 @@ uniform sampler2D uTexture;
 void main() {
     // Can change based on texture in the future
     // gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
-    if( normal.z == -1.0){
+    
+    if( normal.x == -1.0){
         gl_FragColor = texture2D(uTexture, uv);
     }
 }
