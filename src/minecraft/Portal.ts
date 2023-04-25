@@ -37,13 +37,16 @@ export class Portal {
       return [false];
     }
     const normal = new Vec3(this.outlet.normal.xyz);
-    const teleported = new Vec3([this.outlet.position.x, this.outlet.position.y, this.outlet.position.z]);
-    normal.scale(3);
+    const teleported = new Vec3([this.outlet.position.x, this.outlet.position.y + 0.5, this.outlet.position.z]);
+    normal.scale(10);
+    console.log("Teleportation vector", teleported.xyz, normal.xyz)
     const newPos = Vec3.sum(teleported, normal);
 
     if (Vec3.dot(this.outlet.normal, forward) < 0 && this.outlet.normal.y == 0) {
+      console.log("Normal Teleportation", pos.xyz, newPos.xyz);
       return [true, newPos, false];
     }
+    console.log("Rotation Teleportation", pos.xyz, newPos.xyz);
     return [true, newPos, true];
   }
 
