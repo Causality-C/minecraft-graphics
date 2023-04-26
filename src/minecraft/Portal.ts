@@ -13,6 +13,8 @@ export class Portal {
   private height: number;  // height of portal
   public outlet: Portal|null;  // the portal that this portal leads to
   public blocks: Vec3[];  // Coordinates of blocks that are part of the portal
+  private blocksF32: Float32Array;
+  private highlightedCubePos: number;
 
   private generatePortal: boolean;  // Determines whether portal can be activated
   public portalMesh: PortalMesh;    // Portal mesh
@@ -29,6 +31,8 @@ export class Portal {
     this.height = height;
     this.outlet = null;
     this.blocks = [position];
+    this.blocksF32 = new Float32Array([...position.xyz, 5]);
+    this.highlightedCubePos = 0;
     this.generatePortal = false;
   }
 
@@ -87,8 +91,19 @@ export class Portal {
     return true;
   }
 
+  private updateBlockF32() {
+    this.blocksF32 = new Float32Array(4 *this.blocks.length);
+    for (let i = 0; i < this.blocks.length; ++i) {
+      this.blocksF32[4 * i] = this.blocks[i].x;
+      this.blocksF32[4 * i + 1] = this.blocks[i].y; 
+      this.blocksF32[4 * i + 2] = this.blocks[i].z; 
+      this.blocksF32[4 * i + 3] = 5.0;
+    }
+  }
+
   public addBlock(pos: Vec3) {
     this.blocks.push(pos);
+    this.updateBlockF32();
       // Determine if portal should be added or removed based on block change
     this.generatePortal = this.createPortal();
   }
@@ -99,6 +114,7 @@ export class Portal {
         this.blocks.push(blocks[i]);
       }
     }
+    this.updateBlockF32();
   }
   // Given camera of player, calculate what the camera should be on the other
   // side of the portal
@@ -215,6 +231,7 @@ export class Portal {
     }
     
     // Determine if portal should be added or removed based on block change
+    this.updateBlockF32();
     this.generatePortal = this.createPortal();
     return partitions;
   }
@@ -299,6 +316,42 @@ export class Portal {
 
   public activePortal() {
     return this.generatePortal;
+  }
+
+   // Returns if a cube is in the chunk and highlights it if it is
+   public updateSelected(highlightOn: boolean, selectedCube: Vec3, isPortal: boolean, portals: Portal[]): boolean {
+    // Is this a portal block?
+
+    // Reset the previously highlighted box
+    if (this.highlightedCubePos < this.blocks.length) {
+      this.blocksF32[4 * this.highlightedCubePos + 3] = 5.0;
+    }
+    // Do not highlight if highlighting is turned off
+    if (!highlightOn) {
+      return false;
+    }
+
+    // Find if the cube is rendered in the current chunk and highlight if so
+    for (let i = 0; i < this.blocks.length; ++i) {
+      if (this.blocksF32[4 * i] == selectedCube.x &&
+          this.blocksF32[4 * i + 1] == selectedCube.y &&
+          this.blocksF32[4 * i + 2] == selectedCube.z) {
+        this.blocksF32[4 * i + 3] = 3;  // Highlight
+        this.highlightedCubePos = i;
+        return true;
+      } else {
+        this.blocksF32[4 * i + 3] = 5.0;
+      }
+    }
+    return false;
+  }
+
+  public cubePositions() {
+    return this.blocksF32;
+  }
+
+  public numCubes() {
+    return this.blocks.length;
   }
 }
 

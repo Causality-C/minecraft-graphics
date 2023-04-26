@@ -532,10 +532,38 @@ export class Chunk {
     return false;
   }
 
-  public updateLandscape(removeCube: boolean, selectedCube: Vec3, portals: Portal[]) {
+  public updateLandscape(removeCube: boolean, selectedCube: Vec3, isPortalBlock: boolean) {
     // See if the selected box is in the current chunk
     if (!this.isInChunkBounds(selectedCube.x, selectedCube.z)) {
       return false;
+    }
+    // Only add collision logic if it is a portal block
+    if (isPortalBlock) {
+      if (removeCube) {
+        // Remove the cube
+        let idx = (selectedCube.x - this.topleftx) * this.size +
+            (selectedCube.z - this.toplefty);
+        this.densityMap[idx][selectedCube.y] = -1.0;
+      } else {
+          // Update height map and density map if we add a cube
+        let idx = (selectedCube.x - this.topleftx) * this.size +
+            (selectedCube.z - this.toplefty);
+        let height = this.heightMap[idx];
+        // This is the case where we add a cube on top of the current height
+        if (selectedCube.y >= height) {
+          // We're building even higher than the current height
+          let densArr = [...this.densityMap[idx]];
+          for (let i = 0; i < selectedCube.y - height; ++i) {
+            densArr.push(-1.0);
+          }
+          densArr.push(1.0);
+          this.densityMap[idx] = new Float32Array(densArr);
+          this.heightMap[idx] = densArr.length;
+        } else {
+          this.densityMap[idx][selectedCube.y] = 1.0;
+        }
+      }
+      return;
     }
 
     // Update number of cubes
@@ -569,13 +597,7 @@ export class Chunk {
       updatedPositionsF32[4 * blockIdx + 1] = selectedCube.y;
       updatedPositionsF32[4 * blockIdx + 2] = selectedCube.z;
       updatedPositionsF32[4 * blockIdx + 3] = 0.0;
-      for (let i = 0; i < portals.length; ++i) {
-        if (portals[i].blockIn(selectedCube)) {
-          this.cubePositionsF32[4 * blockIdx + 3] = 5.0;
-        }
-      }
-      // console.log('FILLING');
-
+      
       this.highlightedCubePos = blockIdx;
       // Update height map and density map if we add a cube
       let idx = (selectedCube.x - this.topleftx) * this.size +

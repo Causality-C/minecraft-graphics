@@ -521,7 +521,7 @@ export class MinecraftAnimation extends CanvasAnimation {
         debugText + '\n' + debugTextLook + '\n' + debugTextBlock;
   }
 
-  private renderPortalView(gl, x: number, y: number, width: number, height: number, portal: Portal) {
+  private renderPortalView(gl, x: number, y: number, width: number, height: number, portal: Portal, portalNum: number) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.secondBuffer);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
@@ -536,6 +536,14 @@ export class MinecraftAnimation extends CanvasAnimation {
       portal.portalRenderPass.updateAttributeBuffer(
           'aOffset', this.chunks[chunk].cubePositions());
       portal.portalRenderPass.drawInstanced(this.chunks[chunk].numCubes());
+    }
+    
+    for (let i = 0; i < this.portals.length; ++i) {
+      if (portal.outlet !== this.portals[i]) {
+        portal.portalRenderPass.updateAttributeBuffer(
+          'aOffset', this.portals[i].cubePositions());
+          portal.portalRenderPass.drawInstanced(this.portals[i].numCubes());
+      }
     }
 
     // Move portal's perspective to the buffer
@@ -558,6 +566,12 @@ export class MinecraftAnimation extends CanvasAnimation {
           'aOffset', this.chunks[chunk].cubePositions());
       this.blankCubeRenderPass.drawInstanced(this.chunks[chunk].numCubes());
     }
+    // Render portal blocks
+    for (let i = 0; i < this.portals.length; ++i) {
+      this.blankCubeRenderPass.updateAttributeBuffer(
+        'aOffset', this.portals[i].cubePositions());
+      this.blankCubeRenderPass.drawInstanced(this.portals[i].numCubes());
+    }
     // We draw a sillouette of the selected cube on top of everything else.
     if (this.highlightSelected && this.highlightOn) {
       // Draw a portal sillouette if the player is in portal mode
@@ -571,7 +585,8 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     for (let i = 0; i < this.portals.length; ++i) {
       if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
-        this.renderPortalView(gl, x, y, width, height, this.portals[i]);
+        console.log("RENDERING PORTAL", i)
+        this.renderPortalView(gl, x, y, width, height, this.portals[i], i);
         this.portalRenderPass.updateAttributeBuffer(
           'aVertPos', this.portals[i].portalMesh.positionsFlat());
         this.portalRenderPass.updateAttributeBuffer(
@@ -627,10 +642,16 @@ export class MinecraftAnimation extends CanvasAnimation {
     let isRemovingCube = false;
     let isPortal = this.portals.some(
         (portal: Portal) => {return portal.blockIn(selectedCube)});
-    // console.log(isPortal, selectedCube.xyz);
+    // Highlight selected block if it is part of a chunk
     for (let chunk in this.chunks) {
       isRemovingCube = isRemovingCube ||
           this.chunks[chunk].updateSelected(
+              this.highlightOn, selectedCube, isPortal, this.portals);
+    }
+    // Highlight selected portal cube
+    for (let i = 0; i < this.portals.length; ++i) {
+      isRemovingCube = isRemovingCube ||
+          this.portals[i].updateSelected(
               this.highlightOn, selectedCube, isPortal, this.portals);
     }
     this.removeCube = isRemovingCube;
@@ -750,7 +771,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     // Update log and all chunks
     this.modificationLog = newLog;
     for (let chunk in this.chunks) {
-      this.chunks[chunk].updateLandscape(this.removeCube, selectedCube, this.portals);
+      this.chunks[chunk].updateLandscape(this.removeCube, selectedCube, this.gui.currentBlock == 2);
     }
     this.removeCube = !this.removeCube;
   }
