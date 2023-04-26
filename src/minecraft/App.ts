@@ -1,4 +1,4 @@
-import {Mat4, Quat, Vec3, Vec4} from '../lib/TSM.js';
+import {Mat3, Mat4, Quat, Vec3, Vec4} from '../lib/TSM.js';
 import {Camera} from '../lib/webglutils/Camera.js';
 import {CanvasAnimation, WebGLUtilities,} from '../lib/webglutils/CanvasAnimation.js';
 import {Debugger} from '../lib/webglutils/Debugging.js';
@@ -83,7 +83,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   private portalPerspectiveRP: RenderPass;
   private secondBuffer: WebGLFramebuffer;
   public portalOutletCamera: Camera;
-  private portalOutletCameraOrientation: Vec3;
+  private portalInputCamera: Camera;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -132,9 +132,8 @@ export class MinecraftAnimation extends CanvasAnimation {
     // These are arbitrary values but useful for debugging
     let pos: Vec3 = new Vec3([-26.598791122436523, 68.5, -12.321470260620117]);
     // this means we are looking out on the +z axis
-    let look: Vec3 = new Vec3([0.0, 0.0, 1.0]);
+    let look: Vec3 = new Vec3([0.0, 0.0, -1.0]);
     let up: Vec3 = new Vec3([0.0, 1.0, 0.0]);
-    this.portalOutletCameraOrientation = look;  // initial orientation
 
     this.portalOutletCamera = new Camera(
         pos, Vec3.sum(pos, look), up, 45,
@@ -426,64 +425,21 @@ export class MinecraftAnimation extends CanvasAnimation {
     }
 
     // Portal Position and orientation logic
-    if (this.portals.length !== 0) {
+    if (this.portals.length !== 0 && this.portalInputCamera) {
       // Only try first portal for now
       let portal: Portal = this.portals[0];
-      let portalPos: Vec3 = portal.blocks[0];
 
-      // Compute distance between player and arbitrary block
-      let outletPos: Vec3 =
-          new Vec3([-26.598791122436523, 60.5, -12.321470260620117]);
-      let delta: Vec3 = Vec3.difference(this.playerPosition, portalPos);
+      // Compute transformation matrix
+      let outLocalToWorld: Mat4 = this.portalOutletCamera._init_view.copy();
+      let inWorldToLocal: Mat4 = this.portalInputCamera._init_view.copy();
+      let curLocalToWorld: Mat4 = this.gui.getCamera().viewMatrix().copy();
+      curLocalToWorld.inverse();
+      outLocalToWorld.inverse();
 
-      // Compute Rotation
-
-      // Create two vectors we are going to use to calculate the angle
-      let vec1: Vec3 =
-          this.portalOutletCameraOrientation;  // portal facing direction
-      let vec2: Vec3 =
-          new Vec3([1, 0, 0]);  // user facing direction (not normal)
-
-      // Angle between the two vectors, normalized to -PI to PI
-      let theta: number =
-          Math.atan2(vec1.z, vec1.x) - Math.atan2(vec2.z, vec2.x);
-      if (theta > Math.PI) {
-        theta -= 2 * Math.PI;
-      } else if (theta < -Math.PI) {
-        theta += 2 * Math.PI;
-      }
-      theta = Math.abs(theta);  // TODO: add y-axis
-
-
-      // Axis of rotation and angle
-      let rotAxis: Vec3 = Vec3.cross(vec2, vec1).normalize();
-      rotAxis.normalize();
-
-      // Apply rotation transformation if needed
-      let rot: Quat;
-      let vec2neg: Vec3 = new Vec3([-vec2.x, -vec2.y, -vec2.z]);
-
-      if (vec1.equals(vec2neg)) {
-        // Case 1: Portal entrance and exit exhibit opposite facing directions
-        rot = Quat.fromAxisAngle(new Vec3([0, 1, 0]), Math.PI);
-      } else if (vec1.equals(vec2)) {
-        // Case 2: Portal entrance and exit face the same direction
-        rot = Quat.fromAxisAngle(new Vec3([0, -1, 0]), 0);
-      } else {
-        // Case 3: Portal entrance and exit face different directions
-        rot = Quat.fromAxisAngle(rotAxis, theta);
-      }
-
-      // Compute angle of Camera
-      // let camFor = this.gui.getCamera().forward().negate();
-      // let deltaAng = rot.multiplyVec3(camFor);
-      // let newLook = Vec3.sum(outletPos, deltaAng);
-      // this.portalOutletCamera.setTarget(newLook);
-
-      // Compute Placement of camera
-      let deltaRot = rot.multiplyVec3(delta);
-      let updatedPos: Vec3 = Vec3.sum(outletPos, deltaRot);
-      this.portalOutletCamera.setPos(updatedPos);
+      // transform m = outLocalToWorld * inWorldToLocal * curLocalToWorld
+      let m: Mat4 = Mat4.product(outLocalToWorld, inWorldToLocal);
+      m = Mat4.product(m, curLocalToWorld);
+      this.portalOutletCamera.setStaticTransformation(m);
     }
 
     // Day night logic
@@ -679,6 +635,16 @@ export class MinecraftAnimation extends CanvasAnimation {
           let portal = new Portal(selectedCube, new Vec3([1, 1, 1]), 1, 1);
           // Set up new render pass
           this.portals.push(portal);
+          // These are arbitrary values but useful for debugging
+          let pos: Vec3 = new Vec3([x, y, z]);
+          // this means we are looking out on the +z axis
+          let look: Vec3 = new Vec3([0.0, 0.0, -1.0]);
+          let up: Vec3 = new Vec3([0.0, 1.0, 0.0]);
+          this.portalInputCamera = new Camera(
+              pos, Vec3.sum(pos, look), up, 45,
+              this.ctx.drawingBufferWidth / this.ctx.drawingBufferHeight, 0.1,
+              1000.0);
+
         } else {
           // Loop thorugh all portals and see if the selected cube can be added
           let canAdd = this.portals.filter((portal) => {

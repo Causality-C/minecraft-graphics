@@ -1,6 +1,7 @@
-import { Mat4, Mat3, Vec3 } from "../TSM.js";
-import { Quat } from "../tsm/Quat.js";
-//import { Ray } from "../../ray/Ray"
+import {Mat3, Mat4, Vec3} from '../TSM.js';
+import {Quat} from '../tsm/Quat.js';
+
+// import { Ray } from "../../ray/Ray"
 
 export class RayCamera {
   public position: Vec3;
@@ -12,8 +13,12 @@ export class RayCamera {
   private v: Vec3;
 
   constructor(position?: Vec3, look?: Vec3) {
-    if (!position) { position = new Vec3(); }
-    if (!look) { look = new Vec3(); }
+    if (!position) {
+      position = new Vec3();
+    }
+    if (!look) {
+      look = new Vec3();
+    }
     this.position = position;
     let fov = 45 / (180 / Math.PI);
     this.normalizedHeight = 2 * Math.tan(fov / 2);
@@ -22,39 +27,43 @@ export class RayCamera {
     let zDir = look;
     let yDir = new Vec3([0, 1, 0]);
     let xDir = Vec3.cross(yDir, zDir);
-    this.rotationMatrix = new Mat3((xDir.xyz as number[]).concat(yDir.xyz as number[]).concat(zDir.xyz));
-    this.u = this.rotationMatrix.multiplyVec3(new Vec3([this.normalizedHeight*this.aspect, 0, 0]));
-    this.v = this.rotationMatrix.multiplyVec3(new Vec3([0, this.normalizedHeight, 0]), this.v);
+    this.rotationMatrix = new Mat3(
+        (xDir.xyz as number[]).concat(yDir.xyz as number[]).concat(zDir.xyz));
+    this.u = this.rotationMatrix.multiplyVec3(
+        new Vec3([this.normalizedHeight * this.aspect, 0, 0]));
+    this.v = this.rotationMatrix.multiplyVec3(
+        new Vec3([0, this.normalizedHeight, 0]), this.v);
     this.look = this.rotationMatrix.multiplyVec3(new Vec3([0, 0, -1]));
-
   }
 
- /* public rayThrough(x: number, y: number): Ray {
-    x -= .5;
-    y -= .5;
-    let dir = Vec3.sum(this.look, Vec3.sum(this.u.copy().scale(x), this.v.copy().scale(y)));
-    return new Ray(this.position, dir.normalize());
-  }*/
+  /* public rayThrough(x: number, y: number): Ray {
+     x -= .5;
+     y -= .5;
+     let dir = Vec3.sum(this.look, Vec3.sum(this.u.copy().scale(x),
+   this.v.copy().scale(y))); return new Ray(this.position, dir.normalize());
+   }*/
 }
 
 // Camera - defines a camera to be used in an OpenGL app
 export class Camera {
   // View Matrix parameters
-  private _eye: Vec3; // position of the camera
-  private _forward: Vec3; // forward direction of the camera
-  private _up: Vec3; // up direction of the camera
-  private _right: Vec3; // right direction of the camera
-  private _dist: number; // distance to the focus
+  private _eye: Vec3;      // position of the camera
+  private _forward: Vec3;  // forward direction of the camera
+  private _up: Vec3;       // up direction of the camera
+  private _right: Vec3;    // right direction of the camera
+  private _dist: number;   // distance to the focus
 
-  private _initial_forward: Vec3;
-  private _initial_up: Vec3;
+  // Can be public to be accessed later
+  public _initial_forward: Vec3;
+  public _initial_up: Vec3;
+  public _init_view: Mat4;
   private _orientation: Quat;
 
   // Projection matrix parameters
-  private _fov: number; // field of view in degrees
-  private _aspect: number; // aspect ratio
-  private _zNear: number; // near plane distance
-  private _zFar: number; // far plane distance
+  private _fov: number;     // field of view in degrees
+  private _aspect: number;  // aspect ratio
+  private _zNear: number;   // near plane distance
+  private _zFar: number;    // far plane distance
 
   /**
    * Camera::constructor
@@ -67,14 +76,8 @@ export class Camera {
    * @param zFar   - distance to the far plane
    */
   constructor(
-    pos: Vec3,
-    target: Vec3,
-    upDir: Vec3,
-    fov: number,
-    aspect: number,
-    zNear: number,
-    zFar: number
-  ) {
+      pos: Vec3, target: Vec3, upDir: Vec3, fov: number, aspect: number,
+      zNear: number, zFar: number) {
     // TODO: error checking parameters
     console.assert(target != null);
     this._eye = pos;
@@ -101,6 +104,8 @@ export class Camera {
     console.assert(this._zNear != null);
     this._zFar = zFar;
     console.assert(this._zFar != null);
+    this._init_view = this.viewMatrix();
+    console.assert(this._init_view != null);
   }
 
   public setKeyFrame(p: Vec3, o: Quat, d: number) {
@@ -197,19 +202,13 @@ export class Camera {
 
   // Returns the position of the target
   public target(): Vec3 {
-    return this.pos()
-      .copy()
-      .add(
-        this.forward()
-          .copy()
-          .scale(-this._dist)
-      );
+    return this.pos().copy().add(this.forward().copy().scale(-this._dist));
   }
 
   public offsetTarget(dir: Vec3): void {
     // TODO
     console.assert(dir != null);
-    throw new Error("offsetTarget not complete");
+    throw new Error('offsetTarget not complete');
   }
 
   // Translation Methods
@@ -331,6 +330,27 @@ export class Camera {
     }
   }
 
+  // Sets rotation manually from inital forward and up vectors
+  public setRotation(rotation: Mat3): void {
+    // Set the new position
+    this._orientation = rotation.toQuat().copy();
+
+    // Update the forward, up, and right vectors based on the new orientation
+    this._forward = new Vec3([rotation.at(6), rotation.at(7), rotation.at(8)]);
+    this._up = new Vec3([rotation.at(3), rotation.at(4), rotation.at(5)]);
+    this._right = new Vec3([rotation.at(0), rotation.at(1), rotation.at(2)]);
+  }
+
+  // Sets the position and rotation fields manually from a transformation matrix
+  public setStaticTransformation(transformation: Mat4): void {
+    // Set the new position and rotation
+    let pos: Vec3 = new Vec3(
+        [transformation.at(12), transformation.at(13), transformation.at(14)]);
+    let rot: Mat3 = transformation.toMat3();
+    this.setRotation(rot);
+    this.setPos(pos);
+  }
+
   // Camera::viewMatrix - returns the view matrix
   public viewMatrix(): Mat4 {
     const m: Mat4 = Mat4.lookAt(this._eye, this.target(), this._up);
@@ -340,12 +360,8 @@ export class Camera {
 
   // Camera::projMatrix - returns the projection matrix
   public projMatrix(): Mat4 {
-    const m: Mat4 = Mat4.perspective(
-      this._fov,
-      this._aspect,
-      this._zNear,
-      this._zFar
-    );
+    const m: Mat4 =
+        Mat4.perspective(this._fov, this._aspect, this._zNear, this._zFar);
     console.assert(m != null);
     return m;
   }

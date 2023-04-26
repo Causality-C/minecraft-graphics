@@ -224,11 +224,15 @@ export const blankPortalVSText = `
     varying vec4 wsPos;
     varying vec2 uv;
 
+    // Added specifically for portal
     void main () {
+        // Takes a world coordinate and converts it to a screen coordinate
         vec4 offset = vec4(aOffset.x, aOffset.y, aOffset.z, 0.0);
         gl_Position = uProj * uView * (aVertPos + offset);
         wsPos = aVertPos + aOffset;
         normal = normalize(aNorm);
+
+        // For some reason, some perspectives are flipped horizontally
         if(normal.x == 1.0 || normal.z == -1.0){
             uv = vec2(aUV.x, aUV.y);
         }
@@ -251,9 +255,8 @@ uniform sampler2D uTexture;
 
 void main() {
     // Can change based on texture in the future
-    // gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
     
-    if( normal.x == -1.0){
+    if( normal.z == 1.0){
         gl_FragColor = texture2D(uTexture, uv);
     }
 }
