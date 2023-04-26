@@ -8,7 +8,7 @@ import {Chunk} from './Chunk.js';
 import {Cube} from './Cube.js';
 import {GUI} from './Gui.js';
 import {Portal, PortalMesh} from './Portal.js';
-import {blankCubeFSText, blankCubeVSText, portalMeshVSText, portalMeshFSText} from './Shaders.js';
+import {blankCubeFSText, blankCubeVSText, portalMeshFSText, portalMeshVSText} from './Shaders.js';
 
 export class Config {
   public static PLAYER_RADIUS: number = 0.4;
@@ -84,7 +84,6 @@ export class MinecraftAnimation extends CanvasAnimation {
   private portalBuffer: Uint8Array;
   private portalPerspectiveRP: RenderPass;
   private secondBuffer: WebGLFramebuffer;
-  private portalOutletCamera: Camera;
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
 
@@ -118,7 +117,9 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     // Portals
     this.portals = [];
-    const portalMesh = new PortalMesh(new Vec3([-50, 0, -50]), new Vec3([0, 100, 0]), new Vec3([100, 0, 0]), new Vec3([0, 0, 1]))
+    const portalMesh = new PortalMesh(
+        new Vec3([-50, 0, -50]), new Vec3([0, 100, 0]), new Vec3([100, 0, 0]),
+        new Vec3([0, 0, 1]));
     this.portalRenderPass =
         new RenderPass(gl, portalMeshVSText, portalMeshFSText);
     this.initPortalMesh(this.portalRenderPass, portalMesh);
@@ -133,18 +134,6 @@ export class MinecraftAnimation extends CanvasAnimation {
     this.portalPerspectiveRP =
         new RenderPass(gl, blankCubeVSText, blankCubeFSText);
 
-    // These are arbitrary values but useful for debugging
-    let pos: Vec3 = new Vec3([-26.598791122436523, 65.5, -12.321470260620117]);
-    // this means we are looking out on the +z axis
-    let look: Vec3 = new Vec3([0.0, 0.0, 1.0]);
-    let up: Vec3 = new Vec3([0.0, 1.0, 0.0]);
-
-    this.portalOutletCamera = new Camera(
-        pos, Vec3.sum(pos, look), up, 45,
-        gl.drawingBufferWidth / gl.drawingBufferHeight, 0.1, 1000.0);
-
-    this.initBlankCube(this.portalPerspectiveRP, this.portalOutletCamera);
-
     // Allocate another frame buffer
     this.secondBuffer = this.createFrameBuffer(
         gl, gl.drawingBufferWidth, gl.drawingBufferHeight);
@@ -154,8 +143,8 @@ export class MinecraftAnimation extends CanvasAnimation {
   }
 
   private createFrameBuffer(
-    gl: WebGLRenderingContext, width: number,
-    height: number): WebGLFramebuffer {
+      gl: WebGLRenderingContext, width: number,
+      height: number): WebGLFramebuffer {
     const offscreenFBO = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, offscreenFBO);
 
@@ -176,8 +165,8 @@ export class MinecraftAnimation extends CanvasAnimation {
   }
 
   private readTextureFromBuffer(
-    gl: WebGLRenderingContext, width: number, height: number,
-    dest: Uint8Array) {
+      gl: WebGLRenderingContext, width: number, height: number,
+      dest: Uint8Array) {
     let texture = gl.createTexture();
     gl.readPixels(
         0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, this.portalBuffer);
@@ -343,7 +332,7 @@ export class MinecraftAnimation extends CanvasAnimation {
   /**
    * Initialize the portal sponge data structure
    */
-  private initPortalMesh(renderPass: RenderPass, portalMesh: PortalMesh): void {    
+  private initPortalMesh(renderPass: RenderPass, portalMesh: PortalMesh): void {
     renderPass.setIndexBufferData(portalMesh.indicesFlat());
     renderPass.addAttribute(
         'aVertPos', 4, this.ctx.FLOAT, false,
@@ -469,7 +458,7 @@ export class MinecraftAnimation extends CanvasAnimation {
         }
       }
     }
-    
+
 
     let ellipseCenter: Vec4 =
         new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);
@@ -519,7 +508,8 @@ export class MinecraftAnimation extends CanvasAnimation {
         debugText + '\n' + debugTextLook + '\n' + debugTextBlock;
   }
 
-  private renderPortalView(gl, x: number, y: number, width: number, height: number, portal: Portal, portalNum: number) {
+  private renderPortalView(
+      gl, x: number, y: number, width: number, height: number, portal: Portal) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.secondBuffer);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
@@ -584,18 +574,18 @@ export class MinecraftAnimation extends CanvasAnimation {
     for (let i = 0; i < this.portals.length; ++i) {
       if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
         console.log("RENDERING PORTAL", i)
-        this.renderPortalView(gl, x, y, width, height, this.portals[i], i);
+        this.renderPortalView(gl, x, y, width, height, this.portals[i]);
         this.portalRenderPass.updateAttributeBuffer(
-          'aVertPos', this.portals[i].portalMesh.positionsFlat());
+            'aVertPos', this.portals[i].portalMesh.positionsFlat());
         this.portalRenderPass.updateAttributeBuffer(
-          'aNorm', this.portals[i].portalMesh.normalsFlat());
+            'aNorm', this.portals[i].portalMesh.normalsFlat());
         this.portalRenderPass.draw();
       }
     }
 
     // this.portalRenderPass.draw();
-    // const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new Vec3([0, 0, 100]), new Vec3([100, 0, 0]))
-    // this.portalRenderPass.draw();
+    // const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new
+    // Vec3([0, 0, 100]), new Vec3([100, 0, 0])) this.portalRenderPass.draw();
 
     // Now we draw the portals if they exist
     // let portalPositions: number[] = [];
@@ -654,8 +644,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     }
     this.removeCube = isRemovingCube;
     if (this.removeCube) {
-      this.selectedCubeF32[3] =
-        3.0;
+      this.selectedCubeF32[3] = 3.0;
     }
     this.highlightSelected = true;
   }
@@ -699,23 +688,18 @@ export class MinecraftAnimation extends CanvasAnimation {
 
           // Either add a new portal or merge existing ones
           if (portalsToMerge.length === 0) {
-            
             let portal = new Portal(selectedCube, new Vec3([1, 1, 1]), 1, 1);
             this.portals.push(portal);
           } else if (portalsToMerge.length === 1) {
-            
             this.portals[portalsToMerge[0]].addBlock(selectedCube);
           } else {
-            
             const portal = this.portals[portalsToMerge[0]];
-            for (let i = portalsToMerge.length - 1; i > 0 ; --i) {
+            for (let i = portalsToMerge.length - 1; i > 0; --i) {
               portal.merge(this.portals[portalsToMerge[i]].blocks);
               this.portals.splice(portalsToMerge[i], 1);
-
             }
             portal.addBlock(selectedCube);
           }
-          
         }
       } else {
         let removePortalIdx = -1;
@@ -724,7 +708,7 @@ export class MinecraftAnimation extends CanvasAnimation {
           let partitions = this.portals[i].removeCube(selectedCube);
           if (partitions.length === 0) {
             removePortalIdx = i;
-          }  else if (!this.portals[i].activePortal()) {
+          } else if (!this.portals[i].activePortal()) {
             const outlet = this.portals[i].outlet;
             if (outlet !== null) {
               outlet.setOutlet(null, this.ctx);
@@ -734,7 +718,8 @@ export class MinecraftAnimation extends CanvasAnimation {
 
           // Create new portal objects if portal was partitioned
           for (let i = 1; i < partitions.length; ++i) {
-            let portal = new Portal(partitions[i][0], new Vec3([1, 1, 1]), 1, 1);
+            let portal =
+                new Portal(partitions[i][0], new Vec3([1, 1, 1]), 1, 1);
             portal.merge(partitions[i].slice(1));
             this.portals.push(portal);
           }
@@ -755,12 +740,17 @@ export class MinecraftAnimation extends CanvasAnimation {
           if (lastActivePortalIdx === -1) {
             lastActivePortalIdx = i;
           } else {
-            console.log("Connecting portals", lastActivePortalIdx, "and", i)
+            console.log('Connecting portals', lastActivePortalIdx, 'and', i)
             const gl = this.ctx;
-            this.portals[i].setOutlet(this.portals[lastActivePortalIdx], this.ctx);
-            this.portals[lastActivePortalIdx].setOutlet(this.portals[i], this.ctx);
-            this.initBlankCube(this.portals[i].portalRenderPass, this.portals[i].portalCamera);
-            this.initBlankCube(this.portals[lastActivePortalIdx].portalRenderPass, this.portals[lastActivePortalIdx].portalCamera);
+            this.portals[i].setOutlet(
+                this.portals[lastActivePortalIdx], this.ctx);
+            this.portals[lastActivePortalIdx].setOutlet(
+                this.portals[i], this.ctx);
+            this.initBlankCube(
+                this.portals[i].portalRenderPass, this.portals[i].portalCamera);
+            this.initBlankCube(
+                this.portals[lastActivePortalIdx].portalRenderPass,
+                this.portals[lastActivePortalIdx].portalCamera);
             lastActivePortalIdx = -1;
           }
         }
@@ -769,7 +759,8 @@ export class MinecraftAnimation extends CanvasAnimation {
     // Update log and all chunks
     this.modificationLog = newLog;
     for (let chunk in this.chunks) {
-      this.chunks[chunk].updateLandscape(this.removeCube, selectedCube, this.gui.currentBlock == 2);
+      this.chunks[chunk].updateLandscape(
+          this.removeCube, selectedCube, this.gui.currentBlock == 2);
     }
     this.removeCube = !this.removeCube;
   }

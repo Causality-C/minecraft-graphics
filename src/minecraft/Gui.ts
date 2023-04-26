@@ -24,7 +24,7 @@ interface IGUI {
 
 export class GUI implements IGUI {
   private static readonly rotationSpeed: number = 0.01;
-  public static readonly walkSpeed: number = 0.5;
+  public static readonly walkSpeed: number = 0.25;
   private static readonly rollSpeed: number = 0.1;
   private static readonly panSpeed: number = 0.1;
 
@@ -140,19 +140,24 @@ export class GUI implements IGUI {
       this.camera.rotate(this.camera.right(), -GUI.rotationSpeed * dy);
     }
 
-    const mouseNDC = new Vec4([(x/this.width) * 2 - 1, 1 - (y/this.height) * 2, -1, 1]);
+    const mouseNDC =
+        new Vec4([(x / this.width) * 2 - 1, 1 - (y / this.height) * 2, -1, 1]);
     const mouseProjection = this.projMatrix().inverse().multiplyVec4(mouseNDC);
     let mouseWorld = this.viewMatrix().inverse().multiplyVec4(mouseProjection);
     mouseWorld.scale(1 / mouseWorld.w);
 
-    const ray = Vec3.difference(new Vec3(mouseWorld.xyz), this.camera.pos()).normalize();
+    const ray = Vec3.difference(new Vec3(mouseWorld.xyz), this.camera.pos())
+                    .normalize();
     const origin = this.camera.pos();
 
     // Get the next block from the players current position.
     let t = Config.SELECT_RADIUS;
     ray.scale(t);
     const selectedCube = Vec3.sum(origin, ray);
-    this.selectedCube = new Vec3([Math.round(selectedCube.x), Math.round(selectedCube.y), Math.round(selectedCube.z)]);
+    this.selectedCube = new Vec3([
+      Math.round(selectedCube.x), Math.round(selectedCube.y),
+      Math.round(selectedCube.z)
+    ]);
     this.animation.updateSelectedCube(this.selectedCube);
   }
 
@@ -177,12 +182,12 @@ export class GUI implements IGUI {
    */
   public onKeydown(key: KeyboardEvent): void {
     switch (key.code) {
-      case 'Digit1':{
+      case 'Digit1': {
         // Default Block
         this.currentBlock = 1;
         break;
       }
-      case 'Digit2':{
+      case 'Digit2': {
         // Portal Block
         this.currentBlock = 2;
         break;
