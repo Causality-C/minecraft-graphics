@@ -437,7 +437,26 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.gui.getCamera().setPos(this.playerPosition);
       this.gravityTime = Date.now();
     }
-    // Handlle portal teleportation
+    for (let i = 0; i < this.portals.length; ++i) {
+      let portal: Portal = this.portals[i];
+
+      if (portal.activePortal() && portal.outlet !== null) {
+        // Compute transformation matrix
+        let outLocalToWorld: Mat4 = portal.portalCamera._init_view.copy();
+        let inWorldToLocal: Mat4 = portal.outlet.portalCamera._init_view.copy();
+        let curLocalToWorld: Mat4 = this.gui.getCamera().viewMatrix().copy();
+        curLocalToWorld.inverse();
+        outLocalToWorld.inverse();
+
+        // transform m = outLocalToWorld * inWorldToLocal * curLocalToWorld
+        let m: Mat4 = Mat4.product(outLocalToWorld, inWorldToLocal);
+        m = Mat4.product(m, curLocalToWorld);
+        portal.portalCamera.setStaticTransformation(m);
+      }
+    }
+
+
+    // Handle portal teleportation
     for (let i = 0; i < this.portals.length; ++i) {
       if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
         if (this.portals[i].intersects(this.playerPosition)) {
@@ -452,6 +471,7 @@ export class MinecraftAnimation extends CanvasAnimation {
         }
       }
     }
+    
 
     let ellipseCenter: Vec4 =
         new Vec4([this.playerPosition.x, 0.0, this.playerPosition.z, 0.0]);

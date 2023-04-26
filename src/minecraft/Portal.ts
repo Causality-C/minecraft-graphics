@@ -285,12 +285,10 @@ export class Portal {
     this.portalMesh = new PortalMesh(corner, axis1, axis2, axis3);
     // Set camera portal
     const pos = portal2.position;
-    const up = axis1;
     const look = Vec3.cross(axis1, axis2);
-    up.normalize();
     look.normalize();
     this.portalCamera = new Camera(
-      pos, Vec3.sum(pos, look), up, 45,
+      pos, Vec3.sum(pos, look), new Vec3([0, 1, 0]), 45,
       gl.drawingBufferWidth / gl.drawingBufferHeight, 0.1, 1000.0);
     // Set up render pass
     this.portalRenderPass = new RenderPass(gl, blankCubeVSText, blankCubeFSText);

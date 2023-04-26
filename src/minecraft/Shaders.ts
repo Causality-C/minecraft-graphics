@@ -253,6 +253,14 @@ export let portalMeshVSText = `
         gl_Position = uProj * uView * aVertPos;
         normal = normalize(aNorm);
         uv = aUV;
+
+        // For some reason, some perspectives are flipped horizontally
+        // if(normal.x == 1.0 || normal.z == -1.0){
+        //     uv = vec2(aUV.x, aUV.y);
+        // }
+        // else{
+        //     uv = vec2(1.0 - aUV.x, aUV.y);
+        // }
     }
 `;
 
