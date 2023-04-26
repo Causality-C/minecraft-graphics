@@ -48,7 +48,7 @@ export class RayCamera {
 export class Camera {
   // View Matrix parameters
   private _eye: Vec3;      // position of the camera
-  public _forward: Vec3;  // forward direction of the camera
+  private _forward: Vec3;  // forward direction of the camera
   private _up: Vec3;       // up direction of the camera
   private _right: Vec3;    // right direction of the camera
   private _dist: number;   // distance to the focus

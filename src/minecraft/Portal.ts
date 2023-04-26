@@ -36,19 +36,19 @@ export class Portal {
     this.generatePortal = false;
   }
 
-  public getPortalTeleportPosition(pos: Vec3, forward: Vec3): any[] {
+  public getPortalTeleportPosition(dir: Vec3): any[] {
     if (this.outlet === null) {
       return [false];
     }
     const normal = new Vec3(this.outlet.normal.xyz);
     const teleported = new Vec3([this.outlet.position.x, this.outlet.position.y + 0.5, this.outlet.position.z]);
-    normal.scale(10);
-    const newPos = Vec3.sum(teleported, normal);
-
-    if (Vec3.dot(this.outlet.normal, forward) < 0 && this.outlet.normal.y == 0) {
-      return [true, newPos, false];
+    let scale = 5;
+    if (Vec3.dot(this.outlet.normal, dir) < 0) {
+      scale = -5;
     }
-    return [true, newPos, true];
+    normal.scale(scale);
+    const newPos = Vec3.sum(teleported, normal);
+    return [true, newPos];
   }
 
   // Given position of player, find distance to portal

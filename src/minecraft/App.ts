@@ -457,16 +457,14 @@ export class MinecraftAnimation extends CanvasAnimation {
 
 
     // Handle portal teleportation
+    const dir = this.gui.walkDir();
     for (let i = 0; i < this.portals.length; ++i) {
       if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
         if (this.portals[i].intersects(this.playerPosition)) {
-          let result = this.portals[i].getPortalTeleportPosition(this.playerPosition, this.gui.getCamera()._forward);
+          let result = this.portals[i].getPortalTeleportPosition(dir);
           if (result[0]) {
             this.playerPosition = result[1];
             this.gui.getCamera().setPos(this.playerPosition);
-            if (result[2]) {
-              this.gui.getCamera().rotate(new Vec3([0, 1, 0]), Math.PI);
-            }
           }
         }
       }
