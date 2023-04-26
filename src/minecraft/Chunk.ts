@@ -538,14 +538,8 @@ export class Chunk {
       return false;
     }
     // Only add collision logic if it is a portal block
-    if (isPortalBlock) {
-      if (removeCube) {
-        // Remove the cube
-        let idx = (selectedCube.x - this.topleftx) * this.size +
-            (selectedCube.z - this.toplefty);
-        this.densityMap[idx][selectedCube.y] = -1.0;
-      } else {
-          // Update height map and density map if we add a cube
+    if (isPortalBlock && !removeCube) {
+        // Update height map and density map if we add a cube
         let idx = (selectedCube.x - this.topleftx) * this.size +
             (selectedCube.z - this.toplefty);
         let height = this.heightMap[idx];
@@ -562,7 +556,6 @@ export class Chunk {
         } else {
           this.densityMap[idx][selectedCube.y] = 1.0;
         }
-      }
       return;
     }
 
