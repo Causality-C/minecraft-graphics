@@ -265,15 +265,15 @@ export class Portal {
     corner.x += 0.5;
     corner.y += 0.5;
     corner.z += 0.5;
-    let axis1 = new Vec3([bottomRight.x - topLeft.x - 1, 0, 0]);
-    let axis2 = new Vec3([0, bottomRight.y - topLeft.y - 1, 0]);
+    let axis2 = new Vec3([bottomRight.x - topLeft.x - 1, 0, 0]);
+    let axis1 = new Vec3([0, bottomRight.y - topLeft.y - 1, 0]);
     let axis3 = new Vec3([0, 0, -1]);
     if (bottomRight.x - topLeft.x == 0) {
-      axis1 = new Vec3([0, 0, bottomRight.z - topLeft.z - 1]);
+      axis2 = new Vec3([0, 0, bottomRight.z - topLeft.z - 1]);
       axis3 = new Vec3([-1, 0, 0]);
 
     } else if (bottomRight.y - topLeft.y == 0) {
-      axis2 = new Vec3([0, 0, bottomRight.z - topLeft.z - 1]);
+      axis1 = new Vec3([0, 0, bottomRight.z - topLeft.z - 1]);
       axis3 = new Vec3([0, -1, 0]);
     }
     this.portalCubeLoc = new Vec3(topLeft.xyz);
@@ -285,10 +285,13 @@ export class Portal {
     this.portalMesh = new PortalMesh(corner, axis1, axis2, axis3);
     // Set camera portal
     const pos = portal2.position;
+    const up = axis1;
     const look = Vec3.cross(axis1, axis2);
+    up.normalize();
     look.normalize();
+    console.log(up.xyz, Vec3.sum(pos, look).xyz)
     this.portalCamera = new Camera(
-      pos, Vec3.sum(pos, look), new Vec3([0, 1, 0]), 45,
+      pos, Vec3.sum(pos, look), up, 45,
       gl.drawingBufferWidth / gl.drawingBufferHeight, 0.1, 1000.0);
     // Set up render pass
     this.portalRenderPass = new RenderPass(gl, blankCubeVSText, blankCubeFSText);
