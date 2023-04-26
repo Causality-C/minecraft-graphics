@@ -251,16 +251,18 @@ export let portalMeshVSText = `
     void main () {
 		//  Convert vertex to camera coordinates and the NDC
         gl_Position = uProj * uView * aVertPos;
+        vec3 ndc_position = gl_Position.xyz / gl_Position.w;
+
         normal = normalize(aNorm);
-        uv = aUV;
+        uv = ndc_position.xy * 0.5 + 0.5;
 
         // For some reason, some perspectives are flipped horizontally
-        // if(normal.x == 1.0 || normal.z == -1.0){
-        //     uv = vec2(aUV.x, aUV.y);
-        // }
-        // else{
-        //     uv = vec2(1.0 - aUV.x, aUV.y);
-        // }
+        if(normal.x == 1.0 || normal.z == 1.0){
+            uv = vec2(uv.x, uv.y );
+        }
+        else{
+            uv = vec2((1.0 - uv.x), (uv.y));
+        }
     }
 `;
 
