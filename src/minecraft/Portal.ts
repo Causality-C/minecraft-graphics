@@ -337,7 +337,7 @@ export class Portal {
     console.log(up.xyz, Vec3.sum(pos, look).xyz)
     this.portalCamera = new Camera(
       pos, Vec3.sum(pos, look), up, 45,
-      gl.drawingBufferWidth / gl.drawingBufferHeight, 0.1, 1000.0);
+      gl.drawingBufferWidth / gl.drawingBufferHeight, 0.01, 1000.0);
     // Set up render pass
     this.portalRenderPass = new RenderPass(gl, blankCubeVSText, blankCubeFSText);
   }
