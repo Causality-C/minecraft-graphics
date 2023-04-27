@@ -450,10 +450,14 @@ export class MinecraftAnimation extends CanvasAnimation {
     for (let i = 0; i < this.portals.length; ++i) {
       if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
         if (this.portals[i].intersects(this.playerPosition)) {
-          let result = this.portals[i].getPortalTeleportPosition(dir);
+          let result = this.portals[i].getPortalTeleportPosition(this.playerPosition, dir);
           if (result[0]) {
             this.playerPosition = result[1];
             this.gui.getCamera().setPos(this.playerPosition);
+            if (result[2] !== 0) {
+              console.log("Rotate")
+              this.gui.getCamera().rotate(new Vec3([0, 1, 0]), result[2] * Math.PI / 2);
+            }
           }
         }
       }
@@ -573,7 +577,6 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     for (let i = 0; i < this.portals.length; ++i) {
       if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
-        console.log("RENDERING PORTAL", i)
         this.renderPortalView(gl, x, y, width, height, this.portals[i]);
         this.portalRenderPass.updateAttributeBuffer(
             'aVertPos', this.portals[i].portalMesh.positionsFlat());

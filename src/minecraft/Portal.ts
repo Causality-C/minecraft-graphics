@@ -36,19 +36,41 @@ export class Portal {
     this.generatePortal = false;
   }
 
-  public getPortalTeleportPosition(dir: Vec3): any[] {
+  public getPortalTeleportPosition(pos: Vec3, dir: Vec3): any[] {
     if (this.outlet === null) {
       return [false];
     }
+    // Get offset from portal center
+    // const currPos = new Vec3(pos.xyz);
+    // currPos.scale(-1);
+    // let diff = Vec3.sum(currPos, new Vec3(this.portalCamera.pos().xyz));
+    // if (this.normal.x !== 0) {
+    //   diff.x = 0;
+    // } else if (this.normal.y !== 0){
+    //   diff.y = 0;
+    // } else {
+    //   diff.z = 0;
+    // }
+    // Get teleported position
     const normal = new Vec3(this.outlet.normal.xyz);
     const teleported = new Vec3([this.outlet.position.x, this.outlet.position.y + 0.5, this.outlet.position.z]);
     let scale = 5;
-    if (Vec3.dot(this.outlet.normal, dir) < 0) {
-      scale = -5;
+    if (Vec3.dot(this.normal, dir) < 0) {
+      scale = -scale;
+    }
+    
+    if ((this.normal.x !== 0 && this.outlet.normal.z !== 0)) {
+      normal.scale(-scale);
+      const newPos = Vec3.sum(teleported, normal);
+      return [true, newPos, -1]
+    } else if ((this.normal.z !== 0 && this.outlet.normal.x !== 0)) {
+      normal.scale(-scale);
+      const newPos = Vec3.sum(teleported, normal);
+      return [true, newPos, 1]
     }
     normal.scale(scale);
     const newPos = Vec3.sum(teleported, normal);
-    return [true, newPos];
+    return [true, newPos, 0];
   }
 
   // Given position of player, find distance to portal
@@ -172,12 +194,17 @@ export class Portal {
     // Get non-zero dimensions
     let dim1 = 0;
     let dim2 = 1;
+    const normal = new Vec3([0, 0, 0.5]);
     if (bottomRight.x - topLeft.x === 0) {
       dim1 = 1;
       dim2 = 2;
+      normal.z = 0;
+      normal.x = 0.5;
     } else if (bottomRight.y - topLeft.y === 0) {
       dim1 = 0;
       dim2 = 2;
+      normal.z = 0;
+      normal.y = 0.5;
     }
     let sizes = [bottomRight.x - topLeft.x + 1, bottomRight.y - topLeft.y + 1, bottomRight.z - topLeft.z + 1];
 
@@ -204,7 +231,8 @@ export class Portal {
         return false;
       }
     }
-    this.position = new Vec3([(topLeft.x + bottomRight.x)/2, (topLeft.y + bottomRight.y)/2, (topLeft.z + bottomRight.z)/2])
+    this.position = new Vec3([(topLeft.x + bottomRight.x)/2, (topLeft.y + bottomRight.y)/2, (topLeft.z + bottomRight.z)/2]);
+    this.position = Vec3.sum(this.position, normal);
     
     return true;
   }
