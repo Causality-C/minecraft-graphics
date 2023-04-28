@@ -455,7 +455,6 @@ export class MinecraftAnimation extends CanvasAnimation {
             this.playerPosition = result[1];
             this.gui.getCamera().setPos(this.playerPosition);
             if (result[2] !== 0) {
-              console.log("Rotate")
               this.gui.getCamera().rotate(new Vec3([0, 1, 0]), result[2] * Math.PI / 2);
             }
           }
@@ -529,7 +528,7 @@ export class MinecraftAnimation extends CanvasAnimation {
           'aOffset', this.chunks[chunk].cubePositions());
       portal.portalRenderPass.drawInstanced(this.chunks[chunk].numCubes());
     }
-    
+    // Render all portal 
     for (let i = 0; i < this.portals.length; ++i) {
       if (portal.outlet !== this.portals[i]) {
         portal.portalRenderPass.updateAttributeBuffer(
@@ -577,6 +576,7 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     for (let i = 0; i < this.portals.length; ++i) {
       if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
+        
         this.renderPortalView(gl, x, y, width, height, this.portals[i]);
         this.portalRenderPass.updateAttributeBuffer(
             'aVertPos', this.portals[i].portalMesh.positionsFlat());
@@ -743,7 +743,6 @@ export class MinecraftAnimation extends CanvasAnimation {
           if (lastActivePortalIdx === -1) {
             lastActivePortalIdx = i;
           } else {
-            console.log('Connecting portals', lastActivePortalIdx, 'and', i)
             const gl = this.ctx;
             this.portals[i].setOutlet(
                 this.portals[lastActivePortalIdx], this.ctx);
