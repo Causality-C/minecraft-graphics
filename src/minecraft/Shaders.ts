@@ -238,6 +238,7 @@ export let portalMeshVSText = `
     uniform vec4 uLightPos;
     uniform mat4 uView;
     uniform mat4 uProj;
+    uniform float useScreenSpace;
 
     attribute vec4 aNorm;
     attribute vec4 aVertPos;
@@ -245,6 +246,7 @@ export let portalMeshVSText = `
 
     varying vec4 normal;
     varying vec2 uv;
+
 
     varying highp float directional;
 
@@ -254,15 +256,17 @@ export let portalMeshVSText = `
         vec3 ndc_position = gl_Position.xyz / gl_Position.w;
 
         normal = normalize(aNorm);
-        uv = ndc_position.xy * 0.5 + 0.5;
+        float u = ndc_position.x * 0.5 + 0.5;
+        float v = 1.0 - (ndc_position.y * 0.5 + 0.5);
 
-        // For some reason, some perspectives are flipped horizontally
-        if(normal.x == 1.0 || normal.z == 1.0){
-            uv = vec2(uv.x, uv.y );
+        // Debug purposes: do not use screen space coordinates
+        if(useScreenSpace == 0.0){
+            u = aUV.x;
+            v = 1.0 - aUV.y;
         }
-        else{
-            uv = vec2((1.0 - uv.x), (uv.y));
-        }
+
+        uv = vec2(clamp(u,0.0,1.0), clamp(v,0.0,1.0));
+
     }
 `;
 

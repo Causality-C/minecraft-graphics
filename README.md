@@ -1,28 +1,52 @@
-# Computer Graphics Minecraft Project
+# Computer Graphics Final Project: Immersive Portals
 <img width="1279" alt="image" src="https://user-images.githubusercontent.com/39445369/231509470-ac5ab3b5-e22b-4914-a04f-f2775480d60f.png">
 
-In this project, Sid and I used value and perlin noise to proceduraly generate blocky terrain and textures as found in the popular game Minecraft. We also implemented walking, block collision, and flying.
+In this project, Jeffrey Liu (jl72726) and Ian Trowbridge (it3434) modified the Minecraft Project to implement immersive portals for the  Computer Graphics Final Project.
 
-### Required Features
-- [X] Terrain Synthesis (60pts): we implemented multi-octave value noise to generate the heights of the 3x3 chunk terrain with seamless chunk boundaries. We also optimized away generating all blocks to blocks that could be visible to the player, resulting in an over 90% block reduction (~192,000 -> ~10,000 blocks). 
+### New Controls
+- [X] Highlight Mode: Pressing 'h' allows the user to enter "highlight mode". This highlights empty spaces green when the player can place a block in said space. Occupied spaces are highlighted red, meaning the highlighted block must be removed before a block can be placed in that space.
 
-- [X] Procedural Textures (40pts): in our shader code we implemented Perlin noise with multiple octaves to generate smooth random textures. We created 3 different blocks: magma, stone, and snow, and had these blocks rendered based on the height of the terrain. Magma is rendered at low points, snow is rendered at high points, and stone is rendered in between. 
+- [X] Adding and Removing Blocks: Right-clicking the mouse will allow the player to add or remove blocks. Right-clicking an existing block will remove it and right-clicking an empty space will result in a block being placed in that location. Use the highlight mode to determine which cube the player has selected and whether a block will be added or removed when right-clicking.
 
-- [X] FPS Controls (30pts): our controls are implemented as in the assignment specification. For our collision code, we check the blocks in a 3x3 area centered around the player to check whether a inputted move is valid. If there is an intersection, we ignore the input. Additionally, we broke this logic into two parts: side collisions and vertical collisions. This ensures that if the player is jumping while running into a block, they will still be able to move. When we are at chunk boundaries we also check neighboring chunks for collisions, to ensure that we do not clip through blocks there.
+- [X] Placing Normal Blocks: Pressing '1' will allow the users to place normal blocks. This is the default mode. Blocks will be removed as normal regardless of which block-placing mode the user is currently in.
 
-### Extra Credit (40 points total)
-- [X] Time-varying perlin noise (+10): we implemented time varying 2D perlin noise for our lava texture block, animating the lava for a flowing effect.
+- [X] Placing Portal Blocks: Pressing '2' will allow the users to place portal blocks. These blocks will be purple and exhibit time-dependent Perlin noise. Blocks will be removed as normal regardless of which block-placing mode the user is currently in.
 
-https://user-images.githubusercontent.com/84476225/231520935-67577da2-f647-449b-88b5-7df076163622.mp4
+- [X] Recursive Portals: Pressing the 'up' arrow key will increase the level of recursion, allowing for portals to recursively display the contents of other portals and create a "hall-of-mirrors" effect. Each press increases the level of recursion by 1. Pressing the 'down' arrow key will decrease the level of recursion by 1, causing fewer layers of recursion to be displayed.
+
+### Features
+
+- [X] Creating Portals: In order to create a portal, the player must first create a valid portal using portal blocks. Valid portals are comprised completely of portal blocks. These portal blocks must only form the edge of the portal, surrounding empty space. These portal blocks must also only fall on a flat plane. Portals can be placed in any orientation, and any desired number of portals can be placed. Two valid portals are required to create an active portal connection. Portal activation happens automatically and will connect the two most recently completed valid portals.
+
+Two examples of **valid** portals are shown below. The portals are comprised only of portal blocks, surround empty space, and fall on a flat plane:
+
+<p float="left">
+  <img src="./.images/validportal.png" width="600" height="600"/>
+  <img src="./.images/validportal2.png" width="600" height="600" /> 
+</p>
+
+Three examples of **invalid** portals are shown below. The leftmost one has a portal block that does not lie on the plane the rest of the blocks are on. The middle picture has a portal block that does not fall on the edge of the portal. Finally, the rightmost structure is missing an edge block required to complete the portal.
+
+<p float="left">
+  <img src="./.images/inavlidportal.png" width="400" height="600"/>
+  <img src="./.images/invalidportal2.png" width="400" height="600" /> 
+  <img src="./.images/invalidportal3.png" width="400" height="600" /> 
+</p>
 
 
-- [X] 3D Perlin noise (+20): we implemented 3D perlin noise on the CPU and augmented it with our existing value noise block height logic to generate overhangs and ravines. For each block, 3D perlin noise values above a certain threshold would indicate that the block would be drawn, biasing blocks that are lower in elevation (so that most if not all blocks below y=20 are solid). We also modified the player collision code to account for the change chunk generation logic. Note, using 3D perlin noise on CPU can result in long chunk load times and performance loss (as chunks are loaded in) so we allowed manually enabling 3D perlin noise generation by pressing the **key "P" on the keyboard**. Pressing **"P"** again will result in normal chunk generation without perlin noise.
+- [X] Immersive Portal Views: Once portals are active, the inner space of the portal will display the view from the connected portal. This view is responsive to player movement. Moving closer or farther will result in the view zooming in or out respectively. Likewise, rotating the player will cause the portal view to rotate, and shifting the player left or right will cause the portal view to respond appropriately. Each portal has two sides, letting the player see the view from either direction of the connected portal.
 
-- [X] Creative Mode (+0): this is a convenience feature to view the world from various angles. Pressing the **key "C" on the keyboard** will allow you to toggle between this and FPS mode. When in this mode, you can use **SPACE** and **LSHIFT** to fly up and down respectively. Since collision detection is turned off in this mode, ensure that you are in safe location when switching back to FPS mode.
+- [X] Recursive Portals: As mentioned in the control section, recursive portal views have been implemented, allowing a hall-of-mirrors effect. If two connected portals have each other in their respective views, the player can increase the recursion level to see a cascade of portals appear.
 
-- [X] Hysteresis Thresholding (+5): to ensure that walking back and forth across chunk boundaries does not significantly impact performance, we maintain a cache of deleted chunks which is checked before generating new chunks. This cache size is configurable in App.ts (by default it is 9, the same size as the player's set of rendered chunks).
-
-- [X] Day Night Cycle (+5): we implemented a simple day and night cycle by making the location of the light source vary with time in a circle centered around the player. Additionally, we made the background color vary as a gradient dependent on the height of the light source to give the sky color depending on the in game time. The speed of the day/night cycle can be controlled with **LARROW** and **RARROW**, which decrease and increase the cycle time respectively by 10 seconds. The default cycle time is 60 seconds, and the minimum cycle time is 10 seconds.
+- [X] Teleportation: Walking through a portal will result in teleportation to the connected portal. Walking through one side of the portal will teleport you to the appropriate side of the connected portal. Furthermore, if the portals are connected at a 90-degree angle with one another, the teleportation will automatically rotate the player so that they are facing the same direction as they saw through the portal.
 
 ### Work balance
-Overall, Sid and I balanced the work out for this project evenly. Sid worked on the FPS controls, chunk loading/unloading, day-night-cycle, and hysteresis while I did most of the value noise, perlin noise, and 3D perlin noise. 
+
+- Jeffrey Liu implemented the rendering and shader code required to generate the portals, including the modifications to the portal's camera with respect to the player's movements. This includes the camera controls needed to create the illusion of a responsive portal and recursive portal generation.
+
+
+- Ian Trowbridge worked on adding and removing blocks, highlighting blocks, and portal mechanics. This includes teleportation and the activation and deactivation of portals, as well as the portal mesh object.
+
+### Extra Credit: Course Surveys
+
+Ian Trowbridge completed the course survey for extra credit.

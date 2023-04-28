@@ -244,11 +244,31 @@ export class GUI implements IGUI {
             `Current Day/Night Cycle Time (s): ${Config.DAY_TIME_SECONDS}`);
         break;
       }
+      case 'ArrowUp': {
+        if (Config.maxPortalDepth < 5) {
+          Config.maxPortalDepth++;
+          console.log(`Portal Depth: ${Config.maxPortalDepth}`);
+        }
+        break;
+      }
+      case 'ArrowDown': {
+        if (Config.maxPortalDepth > 1) {
+          Config.maxPortalDepth--;
+          console.log(`Portal Depth: ${Config.maxPortalDepth}`);
+        }
+        break;
+      }
       case 'KeyC': {
         Config.CREATIVE_MODE = Config.CREATIVE_MODE ? false : true;
         console.log(`Creative Mode Enabled: ${Config.CREATIVE_MODE}`);
         break;
       }
+      case 'KeyF': {
+        Config.useScreenSpace = Config.useScreenSpace == 1.0 ? 0.0 : 1.0;
+        console.log(`Portal render mode updated`);
+        break;
+      }
+
       default: {
         console.log('Key : \'', key.code, '\' was pressed.');
         break;
