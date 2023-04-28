@@ -25,16 +25,16 @@ export class Config {
   public static BORDER_CHUNKS: number = 1.0;
 
   // Number of chunks to store in cache before resetting; for hysteresis
-  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1)** 2
+  public static CACHE_SIZE: number = (2 * Config.BORDER_CHUNKS + 1) ** 2;
 
-      public static GRAVITY: number = -9.8;
+  public static GRAVITY: number = -9.8;
 
   public static JUMP_VELOCITY: number = 10.0;
 
-  public static DAY_TIME_SECONDS: number = 60.0
+  public static DAY_TIME_SECONDS: number = 60.0;
 
-      public static NIGHT_COLOR: Vec4 =
-          new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
+  public static NIGHT_COLOR: Vec4 =
+      new Vec4([0.04313725, 0.00392157, 0.14901961, 1.0]);
 
   public static DAY_COLOR: Vec4 =
       new Vec4([0.6784314, 0.84705882, 0.90196078, 1.0]);
@@ -42,6 +42,10 @@ export class Config {
   public static CREATIVE_MODE: boolean = false;
 
   public static PERLIN_3D: boolean = false;
+
+  public static useScreenSpace = 1.0;  // 0.0 for false, 1.0 for true
+
+  public static maxPortalDepth = 1;
 }
 
 export class MinecraftAnimation extends CanvasAnimation {
@@ -111,7 +115,6 @@ export class MinecraftAnimation extends CanvasAnimation {
 
     this.lightPosition = new Vec4([-1000, 1000, -1000, 1]);
     this.backgroundColor = new Vec4([0.0, 0.37254903, 0.37254903, 1.0]);
-    this.highlightSelected = false;
     this.highlightOn = false;
     this.modificationLog = [];
 
@@ -128,6 +131,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     // collsion logic
     this.portalBuffer =
         new Uint8Array(4 * gl.drawingBufferHeight * gl.drawingBufferWidth);
+    console.log(gl.drawingBufferWidth, gl.drawingBufferHeight);
 
     // This is the portal perspective render pass: we should probably lower the
     // resolution
@@ -168,8 +172,7 @@ export class MinecraftAnimation extends CanvasAnimation {
       gl: WebGLRenderingContext, width: number, height: number,
       dest: Uint8Array) {
     let texture = gl.createTexture();
-    gl.readPixels(
-        0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, this.portalBuffer);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, dest);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -180,7 +183,7 @@ export class MinecraftAnimation extends CanvasAnimation {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   }
 
 
@@ -361,6 +364,11 @@ export class MinecraftAnimation extends CanvasAnimation {
           gl.uniformMatrix4fv(
               loc, false, new Float32Array(this.gui.viewMatrix().all()));
         });
+    renderPass.addUniform(
+        'useScreenSpace',
+        (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+          gl.uniform1f(loc, Config.useScreenSpace);
+        });
 
     renderPass.setDrawData(
         this.ctx.TRIANGLES, portalMesh.indicesFlat().length,
@@ -426,37 +434,21 @@ export class MinecraftAnimation extends CanvasAnimation {
       this.gui.getCamera().setPos(this.playerPosition);
       this.gravityTime = Date.now();
     }
-    for (let i = 0; i < this.portals.length; ++i) {
-      let portal: Portal = this.portals[i];
-
-      if (portal.activePortal() && portal.outlet !== null) {
-        // Compute transformation matrix
-        let outLocalToWorld: Mat4 = portal.portalCamera._init_view.copy();
-        let inWorldToLocal: Mat4 = portal.outlet.portalCamera._init_view.copy();
-        let curLocalToWorld: Mat4 = this.gui.getCamera().viewMatrix().copy();
-        curLocalToWorld.inverse();
-        outLocalToWorld.inverse();
-
-        // transform m = outLocalToWorld * inWorldToLocal * curLocalToWorld
-        let m: Mat4 = Mat4.product(outLocalToWorld, inWorldToLocal);
-        m = Mat4.product(m, curLocalToWorld);
-        portal.portalCamera.setStaticTransformation(m);
-      }
-    }
-
 
     // Handle portal teleportation
     const dir = this.gui.walkDir();
     for (let i = 0; i < this.portals.length; ++i) {
       if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
         if (this.portals[i].intersects(this.playerPosition)) {
-          let result = this.portals[i].getPortalTeleportPosition(this.playerPosition, dir);
+          let result = this.portals[i].getPortalTeleportPosition(
+              this.playerPosition, dir);
           if (result[0]) {
             this.playerPosition = result[1];
             this.gui.getCamera().setPos(this.playerPosition);
             if (result[2] !== 0) {
-              console.log("Rotate")
-              this.gui.getCamera().rotate(new Vec3([0, 1, 0]), result[2] * Math.PI / 2);
+              console.log('Rotate');
+              this.gui.getCamera().rotate(
+                  new Vec3([0, 1, 0]), result[2] * Math.PI / 2);
             }
           }
         }
@@ -510,40 +502,19 @@ export class MinecraftAnimation extends CanvasAnimation {
         document.getElementById('coords') as HTMLElement;
     debugElement.innerHTML =
         debugText + '\n' + debugTextLook + '\n' + debugTextBlock;
-  }
-
-  private renderPortalView(
-      gl, x: number, y: number, width: number, height: number, portal: Portal) {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.secondBuffer);
-    gl.enable(gl.DEPTH_TEST);
-    gl.depthFunc(gl.LEQUAL);
-    gl.viewport(x, y, width, height);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST);
-    gl.frontFace(gl.CCW);
-    gl.cullFace(gl.BACK);
-    for (let chunk in this.chunks) {
-      // Compute the render the portal's perspective also
-      portal.portalRenderPass.updateAttributeBuffer(
-          'aOffset', this.chunks[chunk].cubePositions());
-      portal.portalRenderPass.drawInstanced(this.chunks[chunk].numCubes());
+    if (this.portals[0] != null && this.portals[1] != null &&
+        this.portals[0].portalCamera && this.portals[1].portalCamera) {
+      let debugTextPortals: string = `Portals: [${
+          this.portals[0].portalCamera.pos().xyz.map(
+              x => {return x.toFixed(2)})}] - [${
+          this.portals[0].portalCamera.forward().xyz.map(
+              x => {return x.toFixed(2)})}]- [${
+          this.portals[0].outlet?.portalCamera.pos().xyz.map(
+              x => {return x.toFixed(2)})}] - [${
+          this.portals[0].outlet?.portalCamera.forward().xyz.map(
+              x => {return x.toFixed(2)})}]`
+      debugElement.innerHTML = debugElement.innerHTML + '\n' + debugTextPortals;
     }
-    
-    for (let i = 0; i < this.portals.length; ++i) {
-      if (portal.outlet !== this.portals[i]) {
-        portal.portalRenderPass.updateAttributeBuffer(
-          'aOffset', this.portals[i].cubePositions());
-          portal.portalRenderPass.drawInstanced(this.portals[i].numCubes());
-      }
-    }
-
-    // Move portal's perspective to the buffer
-    this.readTextureFromBuffer(gl, width, height, this.portalBuffer);
-
-    // We do the computation and feed this texture into portals -- TODO: see
-    // Now use default frame buffer to draw the scene
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
   private drawScene(x: number, y: number, width: number, height: number): void {
@@ -561,50 +532,85 @@ export class MinecraftAnimation extends CanvasAnimation {
     // Render portal blocks
     for (let i = 0; i < this.portals.length; ++i) {
       this.blankCubeRenderPass.updateAttributeBuffer(
-        'aOffset', this.portals[i].cubePositions());
+          'aOffset', this.portals[i].cubePositions());
       this.blankCubeRenderPass.drawInstanced(this.portals[i].numCubes());
     }
     // We draw a sillouette of the selected cube on top of everything else.
     if (this.highlightSelected && this.highlightOn) {
-      // Draw a portal sillouette if the player is in portal mode
-      // if (this.gui.currentBlock == 2) {
-      //   this.selectedCubeF32[3] = 4.0;
-      // }
       this.blankCubeRenderPass.updateAttributeBuffer(
           'aOffset', this.selectedCubeF32);
       this.blankCubeRenderPass.drawInstanced(1);
     }
 
     for (let i = 0; i < this.portals.length; ++i) {
-      if (this.portals[i].activePortal() && this.portals[i].outlet !== null) {
-        this.renderPortalView(gl, x, y, width, height, this.portals[i]);
+      let portal: Portal = this.portals[i];
+      if (portal.activePortal() && portal.outlet !== null) {
+        // Compute transformation matrix
+        let outLocalToWorld: Mat4 = portal.portalCamera._init_view.copy();
+        let inWorldToLocal: Mat4 = portal.outlet.portalCamera._init_view.copy();
+        let curLocalToWorld: Mat4 = this.gui.getCamera().viewMatrix().copy();
+        curLocalToWorld.inverse();
+        outLocalToWorld.inverse();
+
+        // Perform recursion for the cameras
+        let recurDepth = Config.maxPortalDepth;
+        let matrices: Mat4[] = new Array(recurDepth);
+        let m: Mat4 = Mat4.product(outLocalToWorld, inWorldToLocal);
+        m = Mat4.product(m, curLocalToWorld);
+
+        // transform m = outLocalToWorld * inWorldToLocal * curLocalToWorld
+        for (let i = 0; i < recurDepth; ++i) {
+          matrices[recurDepth - i - 1] = m;  // depth is inverse to index
+          m = Mat4.product(inWorldToLocal, m);
+          m = Mat4.product(outLocalToWorld, m);
+        }
+
+        // Set up framebuffer to render to and read from
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.secondBuffer);
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LEQUAL);
+        gl.viewport(x, y, width, height);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.enable(gl.CULL_FACE);
+        gl.frontFace(gl.CCW);
+        gl.cullFace(gl.BACK);
+
+        // Render the portal from deepest to shallowest
+        for (let i = 0; i < recurDepth; i++) {
+          let matrix = matrices[i];
+          portal.portalCamera.setStaticTransformation(matrix);
+          // Render chunks from the portal's perspective
+          for (let chunk in this.chunks) {
+            // Compute the render the portal's perspective also
+            portal.portalRenderPass.updateAttributeBuffer(
+                'aOffset', this.chunks[chunk].cubePositions());
+            portal.portalRenderPass.drawInstanced(
+                this.chunks[chunk].numCubes());
+          }
+
+          for (let i = 0; i < this.portals.length; ++i) {
+            if (portal.outlet !== this.portals[i]) {
+              portal.portalRenderPass.updateAttributeBuffer(
+                  'aOffset', this.portals[i].cubePositions());
+              portal.portalRenderPass.drawInstanced(this.portals[i].numCubes());
+            }
+          }
+        }
+
+        // Get portal's texture after recursion
+        this.readTextureFromBuffer(gl, width, height, this.portalBuffer);
+
+        // Render the texture from the pov of the portal
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         this.portalRenderPass.updateAttributeBuffer(
-            'aVertPos', this.portals[i].portalMesh.positionsFlat());
+            'aVertPos', portal.portalMesh.positionsFlat());
         this.portalRenderPass.updateAttributeBuffer(
-            'aNorm', this.portals[i].portalMesh.normalsFlat());
+            'aNorm', portal.portalMesh.normalsFlat());
+
+        // Draw the portal mesh with texture
         this.portalRenderPass.draw();
       }
     }
-
-    // this.portalRenderPass.draw();
-    // const portalMesh = new PortalMesh(new Vec3([-100, 90, -100]), new
-    // Vec3([0, 0, 100]), new Vec3([100, 0, 0])) this.portalRenderPass.draw();
-
-    // Now we draw the portals if they exist
-    // let portalPositions: number[] = [];
-    // if (this.portals.length !== 0) {
-    //   this.portals[0].blocks.forEach((block: Vec3) => {
-    //     portalPositions.push(block.x + 0.1);
-    //     portalPositions.push(block.y + 0.1);
-    //     portalPositions.push(block.z + 0.1);
-    //     portalPositions.push(5.0);
-    //   })
-    //   let portalPositionsF32: Float32Array = new
-    //   Float32Array(portalPositions);
-    //   this.portalRenderPass.updateAttributeBuffer(
-    //       'aOffset', portalPositionsF32);
-    //   this.portalRenderPass.drawInstanced(this.portals[0].blocks.length);
-    // }
   }
 
   public getGUI(): GUI {
