@@ -402,6 +402,9 @@ export class Chunk {
       });
     }
 
+    // for (let i = 0; i < this.size * this.size; ++i) {
+    //   this.heightMap[i] = 50;
+    // }
     
     // Generate density map for chunk
     let densityMap = {};

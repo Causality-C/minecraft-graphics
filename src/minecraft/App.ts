@@ -747,7 +747,6 @@ export class MinecraftAnimation extends CanvasAnimation {
           if (lastActivePortalIdx === -1) {
             lastActivePortalIdx = i;
           } else {
-            console.log('Connecting portals', lastActivePortalIdx, 'and', i)
             const gl = this.ctx;
             this.portals[i].setOutlet(
                 this.portals[lastActivePortalIdx], this.ctx);

@@ -334,7 +334,6 @@ export class Portal {
     const look = Vec3.cross(axis1, axis2);
     up.normalize();
     look.normalize();
-    console.log(up.xyz, Vec3.sum(pos, look).xyz)
     this.portalCamera = new Camera(
       pos, Vec3.sum(pos, look), up, 45,
       gl.drawingBufferWidth / gl.drawingBufferHeight, 0.01, 1000.0);
