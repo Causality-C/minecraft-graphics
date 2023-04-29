@@ -1,5 +1,6 @@
 # Computer Graphics Final Project: Immersive Portals
-<img width="1279" alt="image" src="https://user-images.githubusercontent.com/39445369/231509470-ac5ab3b5-e22b-4914-a04f-f2775480d60f.png">
+<img width="1279" alt="image" src="https://user-images.githubusercontent.com/39445369/235320613-7640c87f-a733-44e5-87ca-0eca4f26d1db.png">
+
 
 In this project, Jeffrey Liu (jl72726) and Ian Trowbridge (it3434) modified the Minecraft Project to implement immersive portals for the  Computer Graphics Final Project.
 
