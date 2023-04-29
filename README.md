@@ -3,6 +3,9 @@
 
 In this project, Sid and I used value and perlin noise to proceduraly generate blocky terrain and textures as found in the popular game Minecraft. We also implemented walking, block collision, and flying.
 
+### Portal Project
+Please go to the [Portal Mesh](https://github.com/Causality-C/minecraft-graphics/tree/PortalMesh) branch for the final project about portals and non-euclidean geometry.
+
 ### Required Features
 - [X] Terrain Synthesis (60pts): we implemented multi-octave value noise to generate the heights of the 3x3 chunk terrain with seamless chunk boundaries. We also optimized away generating all blocks to blocks that could be visible to the player, resulting in an over 90% block reduction (~192,000 -> ~10,000 blocks). 
 
