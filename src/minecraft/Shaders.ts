@@ -190,8 +190,6 @@ export const blankCubeFSText = `
 	    dot_nl = clamp(dot_nl, 0.0, 1.0);
 
         // Highlight logic for the block
-
-        
         if (highlight >= 2.0 - epsilon) {
             if (highlight >= 2.0 - epsilon && highlight <= 2.0 + epsilon) { 
                 // Green means add
@@ -224,11 +222,6 @@ export const blankCubeFSText = `
                 gl_FragColor = vec4(clamp(ka + dot_nl * kd, 0.0, 1.0)* stone, 1.0);
             }
         }
-        
-        // if(highlight == 5.0) {
-        //     // blue means add a portal block
-        //     gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
-        // }
     }
 `;
 
@@ -246,6 +239,9 @@ export let portalMeshVSText = `
 
     varying vec4 normal;
     varying vec2 uv;
+    varying vec4 vPosition;
+    varying float useScreenSpaceFrag;
+    varying vec2 aUVFrag;
 
 
     varying highp float directional;
@@ -253,20 +249,10 @@ export let portalMeshVSText = `
     void main () {
 		//  Convert vertex to camera coordinates and the NDC
         gl_Position = uProj * uView * aVertPos;
-        vec3 ndc_position = gl_Position.xyz / gl_Position.w;
-
         normal = normalize(aNorm);
-        float u = ndc_position.x * 0.5 + 0.5;
-        float v = 1.0 - (ndc_position.y * 0.5 + 0.5);
-
-        // Debug purposes: do not use screen space coordinates
-        if(useScreenSpace == 0.0){
-            u = aUV.x;
-            v = 1.0 - aUV.y;
-        }
-
-        uv = vec2(clamp(u,0.0,1.0), clamp(v,0.0,1.0));
-
+        useScreenSpaceFrag = useScreenSpace;
+        vPosition = gl_Position;
+        aUVFrag = aUV;
     }
 `;
 
@@ -276,9 +262,20 @@ export let portalMeshFSText = `
     varying vec4 normal;
     varying vec2 uv;  
     uniform sampler2D uTexture;
-	
+    varying vec4 vPosition;
+    varying float useScreenSpaceFrag;
+    varying vec2 aUVFrag;
     varying highp float directional;
+
     void main () {
-        gl_FragColor = texture2D(uTexture, uv);
+        vec3 ndc_position = vPosition.xyz / vPosition.w;
+        float u = ndc_position.x * 0.5 + 0.5;
+        float v = ndc_position.y * 0.5 + 0.5;
+
+        if(useScreenSpaceFrag == 0.0){
+            u = aUVFrag.x;
+            v = aUVFrag.y; 
+        }
+        gl_FragColor = texture2D(uTexture, vec2(u,v));
     }
 `;

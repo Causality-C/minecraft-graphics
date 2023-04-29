@@ -169,21 +169,26 @@ export class MinecraftAnimation extends CanvasAnimation {
   }
 
   private readTextureFromBuffer(
-      gl: WebGLRenderingContext, width: number, height: number,
-      dest: Uint8Array) {
+      gl: WebGLRenderingContext, width: number, height: number): WebGLTexture {
     let texture = gl.createTexture();
-    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, dest);
-
-    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(
         gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-        this.portalBuffer);
-    // Clamp on horizontal and vertical and linearly interpolate
+        null);
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.viewport(0, 0, width, height);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.CULL_FACE);
+    gl.frontFace(gl.CCW);
+    gl.cullFace(gl.BACK);
+    return texture as WebGLTexture;
   }
 
 
@@ -567,13 +572,7 @@ export class MinecraftAnimation extends CanvasAnimation {
 
         // Set up framebuffer to render to and read from
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.secondBuffer);
-        gl.enable(gl.DEPTH_TEST);
-        gl.depthFunc(gl.LEQUAL);
-        gl.viewport(x, y, width, height);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        gl.enable(gl.CULL_FACE);
-        gl.frontFace(gl.CCW);
-        gl.cullFace(gl.BACK);
+        let texture = this.readTextureFromBuffer(gl, width, height)
 
         // Render the portal from deepest to shallowest
         for (let i = 0; i < recurDepth; i++) {
@@ -598,10 +597,9 @@ export class MinecraftAnimation extends CanvasAnimation {
         }
 
         // Get portal's texture after recursion
-        this.readTextureFromBuffer(gl, width, height, this.portalBuffer);
-
-        // Render the texture from the pov of the portal
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+
         this.portalRenderPass.updateAttributeBuffer(
             'aVertPos', portal.portalMesh.positionsFlat());
         this.portalRenderPass.updateAttributeBuffer(
